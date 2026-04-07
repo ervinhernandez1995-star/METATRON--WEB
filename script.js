@@ -1,132 +1,89 @@
-import re
-import subprocess
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+// ======================================================
+// CONFIGURACIÓN API (NGROK)
+// ======================================================
+const API_URL = "https://subentire-sibyl-gleesomely.ngrok-free.dev";
 
-app = FastAPI()
+// ======================================================
+// ELEMENTOS DEL DOM
+// ======================================================
+const scanBtn = document.getElementById("scanBtn");
+const tableBody = document.getElementById("wifiTableBody");
+const statusText = document.getElementById("status");
 
-# ========================================================
-# 1. CONFIGURACIÓN CORS + NGROK
-# ========================================================
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
+// ======================================================
+// FUNCIÓN PRINCIPAL SCAN
+// ======================================================
+async function scanNetworks() {
+    try {
+        statusText.innerText = "Escaneando redes... 📡";
 
-# Header para evitar advertencia de ngrok
-NGROK_HEADERS = {"ngrok-skip-browser-warning": "true"}
+        const response = await fetch(`${API_URL}/network-scan`, {
+            method: "POST"
+        });
 
-# ========================================================
-# 2. PARSER WIFI (ROBUSTO MULTI-IDIOMA)
-# ========================================================
-def parse_wifi_output(text):
-    networks = []
-    blocks = re.split(r'SSID \d+ :', text)
+        const data = await response.json();
 
-    for block in blocks[1:]:
-        network = {}
+        if (!data.success) {
+            statusText.innerText = "Error al escanear ❌";
+            console.error(data);
+            return;
+        }
 
-        ssid_match = re.search(r'^\s*(.*)', block, re.MULTILINE)
-        bssid_match = re.search(r'BSSID \d+\s*:\s*([0-9a-fA-F:]{17})', block)
+        renderTable(data.networks);
+        statusText.innerText = `Redes encontradas: ${data.total_found} ✅`;
 
-        # Soporta español e inglés
-        signal_match = re.search(r'(Se.al|Signal)\s*:\s*(\d+)%?', block)
-        channel_match = re.search(r'(Canal|Channel)\s*:\s*(\d+)', block)
+    } catch (error) {
+        statusText.innerText = "Error de conexión ❌";
+        console.error(error);
+    }
+}
 
-        if ssid_match:
-            network['ssid'] = ssid_match.group(1).strip() or "Desconocida"
-            network['bssid'] = bssid_match.group(1) if bssid_match else "N/A"
+// ======================================================
+// RENDER TABLA
+// ======================================================
+function renderTable(networks) {
+    tableBody.innerHTML = "";
 
-            # Solo número limpio
-            network['signal'] = signal_match.group(2) if signal_match else "0"
-            network['channel'] = channel_match.group(2) if channel_match else "N/A"
+    networks.forEach((net, index) => {
+        const row = document.createElement("tr");
 
-            # Seguridad básica
-            if "WPA3" in block:
-                network['security'] = "WPA3"
-            elif "WPA2" in block:
-                network['security'] = "WPA2"
-            elif "WPA" in block:
-                network['security'] = "WPA"
-            else:
-                network['security'] = "Open"
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${net.ssid}</td>
+            <td>${net.bssid}</td>
+            <td>${getSignalBar(net.signal)}</td>
+            <td>${net.channel}</td>
+            <td>${net.security}</td>
+        `;
 
-            networks.append(network)
+        tableBody.appendChild(row);
+    });
+}
 
-    return networks
+// ======================================================
+// BARRA DE SEÑAL VISUAL 🔥
+// ======================================================
+function getSignalBar(signal) {
+    const value = parseInt(signal);
 
-# ========================================================
-# 3. RUTAS API
-# ========================================================
+    let color = "red";
+    if (value > 70) color = "green";
+    else if (value > 40) color = "orange";
 
-@app.get("/")
-async def root():
-    return JSONResponse(
-        content={"status": "METATRON v2.0 ONLINE", "system": "WSL2-Ubuntu"},
-        headers=NGROK_HEADERS
-    )
+    return `
+        <div style="background:#ddd;width:100px;border-radius:5px;">
+            <div style="
+                width:${value}%;
+                background:${color};
+                height:10px;
+                border-radius:5px;
+            "></div>
+        </div>
+        <span>${value}%</span>
+    `;
+}
 
-# 🔥 ENDPOINT PRINCIPAL (YA COMPATIBLE CON TU FRONTEND)
-@app.post("/network-scan")
-async def network_scan(request: Request):
-    try:
-        cmd = ["powershell.exe", "-Command", "netsh wlan show networks mode=bssid"]
-        raw_result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=False)
-
-        decoded_data = raw_result.decode('cp1252', errors='ignore')
-        networks_list = parse_wifi_output(decoded_data)
-
-        return JSONResponse(
-            content={
-                "success": True,
-                "message": "Scan completado",
-                "networks": networks_list,                 # 👈 CLAVE CORRECTA
-                "total_found": len(networks_list),         # 👈 PARA TU UI
-                "sl_no": 1                                 # 👈 ID sesión (puedes mejorar luego)
-            },
-            headers=NGROK_HEADERS
-        )
-
-    except Exception as e:
-        return JSONResponse(
-            content={"success": False, "error": str(e)},
-            status_code=500,
-            headers=NGROK_HEADERS
-        )
-
-# 🔁 LISTADO SIMPLE
-@app.get("/list-networks")
-async def list_networks():
-    try:
-        cmd = ["powershell.exe", "-Command", "netsh wlan show networks mode=bssid"]
-        raw_result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=False)
-
-        decoded_data = raw_result.decode('cp1252', errors='ignore')
-        networks_list = parse_wifi_output(decoded_data)
-
-        return JSONResponse(
-            content={
-                "success": True,
-                "networks": networks_list   # 👈 IMPORTANTE
-            },
-            headers=NGROK_HEADERS
-        )
-
-    except Exception as e:
-        return JSONResponse(
-            content={"success": False, "error": str(e)},
-            status_code=500,
-            headers=NGROK_HEADERS
-        )
-
-# ========================================================
-# 4. RUN SERVER
-# ========================================================
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+// ======================================================
+// EVENTO BOTÓN
+// ======================================================
+scanBtn.addEventListener("click", scanNetworks);
