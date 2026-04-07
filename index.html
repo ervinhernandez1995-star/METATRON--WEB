@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METATRON v2 — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #020408;
+    --panel:    #060d14;
+    --border:   #0d2235;
+    --accent:   #00ffe7;
+    --red:      #ff2d4b;
+    --yellow:   #ffd700;
+    --dim:      #1a3a52;
+    --text:     #8ab8d0;
+    --textbright:#c8e8f8;
+    --glow:     0 0 12px #00ffe740;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-hud:  'Orbitron', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINES OVERLAY ── */
+  body::before {
+    content:'';
+    position:fixed; inset:0; z-index:999; pointer-events:none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px, rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 4px
+    );
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #000c18 0%, #020f1e 100%);
+    position: sticky; top:0; z-index:100;
+  }
+  .logo {
+    font-family: var(--font-hud);
+    font-size: 22px; font-weight: 900;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing: 6px;
+  }
+  .logo span { color: var(--red); }
+  #status-dot {
+    display:inline-block; width:10px; height:10px;
+    border-radius:50%; background:var(--red);
+    margin-right:8px; animation: blink 1.5s infinite;
+  }
+  #status-dot.online { background: var(--accent); box-shadow: var(--glow); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .status-bar { font-size:12px; color:var(--text); display:flex; align-items:center; gap:12px; }
+
+  /* ── LAYOUT ── */
+  .shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: calc(100vh - 61px);
+  }
+
+  /* ── SIDEBAR ── */
+  nav {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+  }
+  nav a {
+    display: block; padding: 14px 24px;
+    text-decoration: none; color: var(--text);
+    font-family: var(--font-hud); font-size: 11px; letter-spacing: 2px;
+    border-left: 3px solid transparent;
+    transition: all .2s;
+  }
+  nav a:hover, nav a.active {
+    color: var(--accent); border-left-color: var(--accent);
+    background: rgba(0,255,231,.05);
+    text-shadow: var(--glow);
+  }
+  nav .nav-icon { margin-right: 10px; }
+
+  /* ── MAIN ── */
+  main { padding: 28px 32px; }
+
+  /* ── API CONFIG BAR ── */
+  .api-bar {
+    display: flex; gap:12px; margin-bottom: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 14px 18px; border-radius: 6px;
+  }
+  .api-bar input {
+    flex:1; background: #03101a; border:1px solid var(--dim);
+    color: var(--accent); font-family: var(--font-mono); padding: 8px 12px;
+    border-radius: 4px; font-size: 13px;
+  }
+  .api-bar input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── PANELS ── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 12px 18px;
+    background: linear-gradient(90deg, #030e1c, #041524);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-hud); font-size:11px;
+    letter-spacing: 3px; color: var(--accent);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .panel-body { padding: 18px; }
+
+  /* ── INPUTS ── */
+  input[type=text], input[type=number], select, textarea {
+    width:100%; background: #03101a; border:1px solid var(--dim);
+    color: var(--textbright); font-family: var(--font-mono);
+    padding: 10px 12px; border-radius: 4px; font-size:13px;
+    margin-bottom: 12px;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline:none; border-color: var(--accent); box-shadow: var(--glow);
+  }
+  label { display:block; font-size:11px; color:var(--text); margin-bottom:4px; letter-spacing:1px; }
+
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap:8px;
+    padding: 10px 22px; border:none; border-radius:4px;
+    font-family: var(--font-hud); font-size:11px; letter-spacing:2px;
+    cursor:pointer; transition: all .2s;
+  }
+  .btn-primary {
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .btn-primary:hover {
+    background: var(--accent); color: var(--bg); box-shadow: var(--glow);
+  }
+  .btn-danger {
+    background: transparent; color: var(--red);
+    border: 1px solid var(--red);
+  }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* ── TAGS ── */
+  .tag {
+    display:inline-block; padding:2px 8px; border-radius:3px;
+    font-size:11px; font-family:var(--font-hud); letter-spacing:1px;
+  }
+  .tag-critical { background:#2a0010; color:var(--red); border:1px solid #5a0020; }
+  .tag-high     { background:#1a1200; color:var(--yellow); border:1px solid #4a3500; }
+  .tag-medium   { background:#001a20; color:#00d4ff; border:1px solid #004a60; }
+  .tag-low      { background:#001a10; color:#00ff88; border:1px solid #004a30; }
+  .tag-info     { background:#0a0a1a; color:#8888ff; border:1px solid #222266; }
+  .tag-unknown  { background:#111; color:#666; border:1px solid #333; }
+
+  /* ── OUTPUT BOX ── */
+  .output {
+    background: #010810; border:1px solid var(--dim);
+    border-radius:4px; padding:16px; font-size:12px;
+    color: var(--textbright); max-height:380px; overflow-y:auto;
+    white-space:pre-wrap; word-break:break-all;
+    line-height: 1.7;
+  }
+  .output::-webkit-scrollbar { width:4px; }
+  .output::-webkit-scrollbar-track { background:#010810; }
+  .output::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+
+  /* ── LOADING ── */
+  .loader {
+    display:none; align-items:center; gap:10px;
+    color: var(--accent); font-size:12px; margin-top:12px;
+  }
+  .loader.show { display:flex; }
+  .loader-bar {
+    width:200px; height:3px; background:var(--dim); border-radius:2px; overflow:hidden;
+  }
+  .loader-fill {
+    height:100%; width:0%; background:var(--accent);
+    animation: load 2s ease-in-out infinite;
+  }
+  @keyframes load { 0%{width:0%} 50%{width:80%} 100%{width:100%} }
+
+  /* ── TABLE ── */
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th {
+    font-family:var(--font-hud); font-size:10px; letter-spacing:2px;
+    color:var(--accent); border-bottom:1px solid var(--border);
+    padding:8px 12px; text-align:left;
+  }
+  td { padding:8px 12px; border-bottom:1px solid #0a1a28; color:var(--textbright); }
+  tr:hover td { background:rgba(0,255,231,.03); }
+  tr.clickable { cursor:pointer; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:0; margin-bottom:0; border-bottom:1px solid var(--border); }
+  .tab {
+    padding:10px 20px; cursor:pointer;
+    font-family:var(--font-hud); font-size:10px; letter-spacing:2px;
+    color:var(--text); border-bottom:2px solid transparent;
+    transition: all .2s;
+  }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-content { display:none; padding:18px; }
+  .tab-content.active { display:block; }
+
+  /* ── SKILL CARD ── */
+  .skill-card {
+    background:#030e1c; border:1px solid var(--border); border-radius:6px;
+    padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .skill-card:hover { border-color:var(--dim); }
+  .skill-name { color:var(--accent); font-size:13px; }
+  .skill-type { font-size:11px; color:var(--text); }
+
+  /* ── VULN CARD ── */
+  .vuln-card {
+    background:#020c16; border:1px solid var(--border); border-radius:6px;
+    padding:14px; margin-bottom:10px;
+  }
+  .vuln-title { font-size:13px; color:var(--textbright); margin-bottom:6px; }
+  .vuln-meta  { font-size:11px; color:var(--text); margin-bottom:8px; }
+  .vuln-desc  { font-size:11px; color:#6a9ab8; line-height:1.6; }
+  .vuln-fix   { font-size:11px; color:#00cc80; margin-top:8px; border-top:1px solid #0a1a28; padding-top:8px; }
+
+  /* ── KNOWLEDGE ENTRY ── */
+  .know-entry {
+    padding:10px 14px; border-bottom:1px solid #0a1a28;
+    display:grid; grid-template-columns:90px 1fr 80px 60px;
+    gap:12px; font-size:11px;
+  }
+  .know-cat  { color:var(--accent); font-family:var(--font-hud); letter-spacing:1px; }
+  .know-subj { color:var(--textbright); }
+  .know-out  { text-align:center; }
+  .know-conf { color:var(--yellow); }
+  .out-success { color:#00ff88; } .out-failure { color:var(--red); } .out-partial { color:var(--yellow); }
+
+  /* ── SECTION VISIBILITY ── */
+  .section { display:none; }
+  .section.active { display:block; }
+
+  /* ── WIFI TABLE ── */
+  .signal-bar {
+    display:inline-block; height:8px; background:var(--accent);
+    border-radius:2px; min-width:4px;
+  }
+
+  /* ── CODE BLOCK ── */
+  .code-block {
+    background:#010810; border:1px solid var(--dim); border-radius:4px;
+    padding:14px; font-size:11px; color:#a0d8f0;
+    max-height:300px; overflow-y:auto; white-space:pre; font-family:var(--font-mono);
+  }
+
+  @media(max-width:768px) {
+    .shell { grid-template-columns: 1fr; }
+    nav { display:flex; overflow-x:auto; padding:12px; }
+    nav a { white-space:nowrap; padding:10px 16px; border-left:none; border-bottom:2px solid transparent; }
+    nav a.active { border-bottom-color:var(--accent); }
+    .row { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">META<span>TRON</span> <span style="font-size:12px;color:var(--text);letter-spacing:2px;">v2.0</span></div>
+  <div class="status-bar">
+    <span id="status-dot"></span>
+    <span id="status-text">Connecting...</span>
+    <span style="color:var(--dim)">|</span>
+    <span id="clock" style="font-size:11px;"></span>
+  </div>
+</header>
+
+<!-- ── SHELL ── -->
+<div class="shell">
+
+  <!-- ── NAV ── -->
+  <nav>
+    <a href="#" class="nav-link active" data-section="scan">
+      <span class="nav-icon">⌖</span> SCAN TARGET
+    </a>
+    <a href="#" class="nav-link" data-section="network">
+      <span class="nav-icon">◉</span> NETWORK SCAN
+    </a>
+    <a href="#" class="nav-link" data-section="skills">
+      <span class="nav-icon">⚙</span> SKILL WORKSHOP
+    </a>
+    <a href="#" class="nav-link" data-section="history">
+      <span class="nav-icon">≡</span> HISTORY
+    </a>
+    <a href="#" class="nav-link" data-section="knowledge">
+      <span class="nav-icon">◈</span> KNOWLEDGE BASE
+    </a>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main>
+
+    <!-- API CONFIG -->
+    <div class="api-bar">
+      <input type="text" id="api-url" placeholder="https://xxxx.ngrok-free.app  ← URL de ngrok" />
+      <button class="btn btn-primary" onclick="testConnection()">▶ CONECTAR</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- [1] SCAN TARGET                           -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="section active" id="section-scan">
+      <div class="panel">
+        <div class="panel-head">⌖ ANÁLISIS DE OBJETIVO</div>
+        <div class="panel-body">
+          <label>TARGET (IP o dominio)</label>
+          <input type="text" id="scan-target" placeholder="192.168.1.1 / example.com" />
+
+          <label style="margin-bottom:8px;">HERRAMIENTAS</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);">
+              <input type="checkbox" id="t-nmap-svc" checked style="width:auto;margin:0;"> nmap service
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);">
+              <input type="checkbox" id="t-nmap-vuln" style="width:auto;margin:0;"> nmap vuln
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);">
+              <input type="checkbox" id="t-whatweb" style="width:auto;margin:0;"> whatweb
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);">
+              <input type="checkbox" id="t-whois" style="width:auto;margin:0;"> whois
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);">
+              <input type="checkbox" id="t-dig" style="width:auto;margin:0;"> dig
+            </label>
+          </div>
+
+          <button class="btn btn-primary" id="btn-scan" onclick="runScan()">▶ INICIAR ANÁLISIS</button>
+
+          <div class="loader" id="scan-loader">
+            <div class="loader-bar"><div class="loader-fill"></div></div>
+            <span id="scan-status-msg">Ejecutando herramientas...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="scan-results" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            RESULTADOS — SL# <span id="r-slno">—</span>
+            <span id="r-risk" class="tag tag-unknown">—</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active" onclick="switchTab('scan','vulns')">VULNERABILIDADES</div>
+            <div class="tab" onclick="switchTab('scan','exploits')">EXPLOITS</div>
+            <div class="tab" onclick="switchTab('scan','analysis')">ANÁLISIS IA</div>
+            <div class="tab" onclick="switchTab('scan','raw')">RAW SCAN</div>
+          </div>
+          <div class="tab-content active" id="scan-tab-vulns"></div>
+          <div class="tab-content" id="scan-tab-exploits"></div>
+          <div class="tab-content" id="scan-tab-analysis"></div>
+          <div class="tab-content" id="scan-tab-raw"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- [2] NETWORK SCAN                          -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="section" id="section-network">
+      <div class="panel">
+        <div class="panel-head">◉ SCANNER PRO — REDES WI-FI</div>
+        <div class="panel-body">
+          <div class="row">
+            <div>
+              <label>ETIQUETA DE SESIÓN</label>
+              <input type="text" id="net-label" placeholder="home_wifi" />
+            </div>
+            <div>
+              <label>MÉTODO</label>
+              <select id="net-method">
+                <option value="powershell">netsh / powershell.exe (WSL2 ✓)</option>
+                <option value="nmcli">nmcli (Linux nativo)</option>
+                <option value="nmap">nmap subnet</option>
+                <option value="all">Todos</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="runNetworkScan()">▶ ESCANEAR REDES</button>
+          <div class="loader" id="net-loader">
+            <div class="loader-bar"><div class="loader-fill"></div></div>
+            <span>Escaneando...</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="net-results" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">REDES DETECTADAS — <span id="net-count">0</span> encontradas</div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>SSID</th><th>BSSID</th><th>CANAL</th><th>SEÑAL</th><th>SEGURIDAD</th>
+                </tr>
+              </thead>
+              <tbody id="net-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">ÚLTIMAS REDES EN DB</div>
+        <div class="panel-body">
+          <button class="btn btn-primary" onclick="loadAllNetworks()">↻ CARGAR</button>
+          <div style="overflow-x:auto;margin-top:12px;">
+            <table>
+              <thead><tr><th>SL#</th><th>SSID</th><th>BSSID</th><th>CH</th><th>SEÑAL</th><th>SEGURIDAD</th><th>FECHA</th></tr></thead>
+              <tbody id="net-db-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- [3] SKILL WORKSHOP                        -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="section" id="section-skills">
+      <div class="row">
+        <div>
+          <div class="panel">
+            <div class="panel-head">⚙ GENERAR SKILL (IA)</div>
+            <div class="panel-body">
+              <label>SERVICIO</label>
+              <input type="text" id="sk-service" placeholder="SSH, SMB, HTTP, FTP..." />
+              <label>PUERTO</label>
+              <input type="text" id="sk-port" placeholder="22, 445, 80..." />
+              <label>CONTEXTO / NOTAS</label>
+              <textarea id="sk-context" rows="3" style="font-family:var(--font-mono);resize:vertical;"
+                placeholder="OpenSSH 7.4 vulnerable, anonymous FTP enabled..."></textarea>
+              <label>LENGUAJE</label>
+              <select id="sk-lang">
+                <option value="python">Python</option>
+                <option value="bash">Bash</option>
+              </select>
+              <button class="btn btn-primary" onclick="createSkill()">▶ GENERAR SKILL</button>
+              <div class="loader" id="skill-loader">
+                <div class="loader-bar"><div class="loader-fill"></div></div>
+                <span>Generando con IA...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-head">SKILLS DISPONIBLES <button class="btn btn-primary" style="padding:4px 10px;font-size:9px;" onclick="loadSkills()">↻</button></div>
+            <div class="panel-body" id="skills-list">
+              <div style="color:var(--dim);font-size:12px;text-align:center;padding:20px;">
+                Carga los skills disponibles →
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated skill preview -->
+      <div id="skill-preview" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">SKILL GENERADO — <span id="sp-name">—</span></div>
+          <div class="panel-body">
+            <div style="margin-bottom:10px;font-size:12px;color:var(--textbright);" id="sp-desc"></div>
+            <div class="code-block" id="sp-code"></div>
+            <div style="margin-top:14px;display:flex;gap:12px;align-items:center;">
+              <label style="margin:0;width:auto;">TARGET:</label>
+              <input type="text" id="sp-target" placeholder="127.0.0.1" style="width:200px;margin:0;" />
+              <button class="btn btn-primary" onclick="runGeneratedSkill()">▶ EJECUTAR</button>
+            </div>
+            <div class="output" id="skill-output" style="margin-top:12px;display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- [4] HISTORY                               -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="section" id="section-history">
+      <div class="panel">
+        <div class="panel-head">
+          ≡ HISTORIAL DE SESIONES
+          <button class="btn btn-primary" style="padding:4px 10px;font-size:9px;" onclick="loadHistory()">↻ ACTUALIZAR</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>SL#</th><th>TARGET</th><th>FECHA</th><th>STATUS</th><th>ACCIONES</th></tr></thead>
+            <tbody id="history-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Session detail panel -->
+      <div id="session-detail" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            DETALLE — SL# <span id="d-slno">—</span> | <span id="d-target">—</span>
+            <span id="d-risk" class="tag tag-unknown">—</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active" onclick="switchTab('detail','vulns')">VULNS</div>
+            <div class="tab" onclick="switchTab('detail','exploits')">EXPLOITS</div>
+            <div class="tab" onclick="switchTab('detail','analysis')">ANÁLISIS</div>
+            <div class="tab" onclick="switchTab('detail','wifi')">WI-FI</div>
+          </div>
+          <div class="tab-content active" id="detail-tab-vulns"></div>
+          <div class="tab-content" id="detail-tab-exploits"></div>
+          <div class="tab-content" id="detail-tab-analysis"></div>
+          <div class="tab-content" id="detail-tab-wifi"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- [5] KNOWLEDGE BASE                        -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="section" id="section-knowledge">
+      <div class="panel">
+        <div class="panel-head">
+          ◈ BASE DE CONOCIMIENTO ADAPTATIVA
+          <button class="btn btn-primary" style="padding:4px 10px;font-size:9px;" onclick="loadKnowledge()">↻</button>
+        </div>
+        <div style="display:flex;gap:10px;padding:14px;border-bottom:1px solid var(--border);">
+          <select id="kb-cat" style="width:180px;margin:0;">
+            <option value="">Todas las categorías</option>
+            <option value="attack">attack</option>
+            <option value="defense">defense</option>
+            <option value="service">service</option>
+            <option value="skill">skill</option>
+          </select>
+          <button class="btn btn-primary" onclick="loadKnowledge()">FILTRAR</button>
+        </div>
+        <div id="knowledge-list">
+          <div style="padding:16px;font-size:12px;color:var(--dim);">Cargando base de conocimiento...</div>
+        </div>
+      </div>
+
+      <!-- Add manual knowledge -->
+      <div class="panel">
+        <div class="panel-head">+ AGREGAR CONOCIMIENTO MANUAL</div>
+        <div class="panel-body">
+          <div class="row">
+            <div>
+              <label>CATEGORÍA</label>
+              <select id="kb-add-cat" style="margin-bottom:12px;">
+                <option value="attack">attack</option>
+                <option value="defense">defense</option>
+                <option value="service">service</option>
+                <option value="skill">skill</option>
+              </select>
+              <label>RESULTADO</label>
+              <select id="kb-add-out" style="margin-bottom:12px;">
+                <option value="success">success</option>
+                <option value="failure">failure</option>
+                <option value="partial">partial</option>
+              </select>
+              <label>CONFIANZA (0.0 - 1.0)</label>
+              <input type="number" id="kb-add-conf" value="0.7" min="0" max="1" step="0.1" style="margin-bottom:12px;">
+            </div>
+            <div>
+              <label>SUJETO</label>
+              <input type="text" id="kb-add-subj" placeholder="Ej: SSH brute force en puerto 22" />
+              <label>DETALLES</label>
+              <textarea id="kb-add-details" rows="4" style="resize:vertical;" placeholder="Notas adicionales..."></textarea>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addKnowledge()">+ GUARDAR</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<script>
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let API = (localStorage.getItem("metatron_api") || "").replace(/\/+$/, "");
+let currentSkillFilename = "";
+
+// ════════════════════════════════════════════════════════════════
+// CORE: apiFetch — SINGLE PLACE for all HTTP calls.
+// Fixes:
+//   1. Strips trailing slashes from API base to prevent double //
+//   2. Adds ngrok-skip-browser-warning on EVERY request
+//   3. Validates response is JSON before parsing (catches HTML error pages)
+//   4. Surfaces clear error messages when backend returns non-JSON
+// ════════════════════════════════════════════════════════════════
+// FIX #1 — Firma unificada: compatible con index.html ({method,body}) Y script.js (body,method)
+async function apiFetch(path, optionsOrBody = {}, legacyMethod = null) {
+  const base  = API.replace(/\/+$/, "");
+  const route = path.startsWith("/") ? path : "/" + path;
+  const url   = base + route;
+
+  let fetchOptions = {};
+  if (
+    optionsOrBody && typeof optionsOrBody === "object" &&
+    ("method" in optionsOrBody || "headers" in optionsOrBody || typeof optionsOrBody.body === "string")
+  ) {
+    fetchOptions = { ...optionsOrBody };
+  } else if (legacyMethod) {
+    fetchOptions = { method: legacyMethod, body: JSON.stringify(optionsOrBody) };
+  } else if (optionsOrBody && Object.keys(optionsOrBody).length) {
+    fetchOptions = { method: "POST", body: JSON.stringify(optionsOrBody) };
+  }
+
+  const callerHeaders = fetchOptions.headers || {};
+  fetchOptions.headers = {
+    "ngrok-skip-browser-warning": "true",
+    "Accept": "application/json",
+    ...callerHeaders,
+  };
+  if (fetchOptions.body && !fetchOptions.headers["Content-Type"]) {
+    fetchOptions.headers["Content-Type"] = "application/json";
+  }
+
+  const response = await fetch(url, fetchOptions);
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const bodyText = await response.text();
+    throw new Error(
+      `Respuesta no-JSON (${response.status}). Content-Type: "${contentType}". ` +
+      `¿Está ngrok corriendo? Preview: ${bodyText.slice(0, 200)}`
+    );
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${data?.detail || JSON.stringify(data)}`);
+  }
+  return data;
+}
+
+// ════════════════════════════════════════════════════════════════
+// API URL INPUT + PERSISTENCE
+// ════════════════════════════════════════════════════════════════
+document.getElementById("api-url").value = API;
+document.getElementById("api-url").addEventListener("input", e => {
+  // FIX #4: sanitize on every keystroke — remove trailing slashes
+  API = e.target.value.trim().replace(/\/+$/, "");
+  localStorage.setItem("metatron_api", API);
+});
+
+// ── Clock ──────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("es-MX", {hour12: false});
+}, 1000);
+
+// ════════════════════════════════════════════════════════════════
+// CONNECTION TEST
+// ════════════════════════════════════════════════════════════════
+async function testConnection() {
+  // Always read current input value
+  API = document.getElementById("api-url").value.trim().replace(/\/+$/, "");
+  localStorage.setItem("metatron_api", API);
+
+  const dot  = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
+  text.textContent = "Conectando...";
+  dot.className = "";
+
+  if (!API) {
+    text.textContent = "Sin URL — pega tu URL de ngrok";
+    return;
+  }
+
+  try {
+    const d = await apiFetch("/");
+    dot.className = "online";
+    text.textContent = `ONLINE — ${d.model || "METATRON v2"}`;
+  } catch(e) {
+    dot.className = "";
+    text.textContent = `OFFLINE — ${e.message.slice(0, 80)}`;
+    console.error("[METATRON] testConnection error:", e);
+  }
+}
+
+if (API) setTimeout(testConnection, 800);
+
+// ════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════════
+document.querySelectorAll(".nav-link").forEach(a => {
+  a.addEventListener("click", e => {
+    e.preventDefault();
+    document.querySelectorAll(".nav-link").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".section").forEach(x => x.classList.remove("active"));
+    a.classList.add("active");
+    document.getElementById(`section-${a.dataset.section}`).classList.add("active");
+  });
+});
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(group, tab) {
+  const prefix  = group === "scan" ? "scan-tab" : "detail-tab";
+  const section = group === "scan" ? "section-scan" : "section-history";
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(`#${section} .tab`).forEach(t => t.classList.remove("active"));
+  document.getElementById(`${prefix}-${tab}`).classList.add("active");
+  event.target.classList.add("active");
+}
+
+// ── Risk tag ──────────────────────────────────────────────────
+function riskTag(level) {
+  const l = (level || "").toUpperCase();
+  const map = { CRITICAL:"critical", HIGH:"high", MEDIUM:"medium", LOW:"low", INFO:"info" };
+  return `<span class="tag tag-${map[l]||"unknown"}">${l||"UNKNOWN"}</span>`;
+}
+
+// ── Utils ─────────────────────────────────────────────────────
+function setLoading(id, show) {
+  document.getElementById(id).classList.toggle("show", show);
+}
+
+function showErr(msg) {
+  console.error("[METATRON]", msg);
+  alert(`⚠ Error:\n${msg}`);
+}
+
+// ════════════════════════════════════════════════════════════════
+// [1] SCAN TARGET
+// ════════════════════════════════════════════════════════════════
+async function runScan() {
+  const target = document.getElementById("scan-target").value.trim();
+  if (!target)  { alert("Ingresa un objetivo."); return; }
+  if (!API)     { alert("Pega tu URL de ngrok primero."); return; }
+
+  const tools = [];
+  if (document.getElementById("t-nmap-svc").checked)  tools.push("nmap_service");
+  if (document.getElementById("t-nmap-vuln").checked) tools.push("nmap_vuln");
+  if (document.getElementById("t-whatweb").checked)   tools.push("whatweb");
+  if (document.getElementById("t-whois").checked)     tools.push("whois");
+  if (document.getElementById("t-dig").checked)       tools.push("dig");
+  if (!tools.length) tools.push("nmap_service");
+
+  setLoading("scan-loader", true);
+  document.getElementById("btn-scan").disabled = true;
+  document.getElementById("scan-results").style.display = "none";
+  document.getElementById("scan-status-msg").textContent = "Ejecutando herramientas de recon...";
+
+  try {
+    const d = await apiFetch("/scan", {
+      method: "POST",
+      body: JSON.stringify({ target, tools }),
+    });
+    renderScanResults(d);
+  } catch(e) {
+    showErr(e.message);
+  } finally {
+    setLoading("scan-loader", false);
+    document.getElementById("btn-scan").disabled = false;
+  }
+}
+
+function renderScanResults(d) {
+  document.getElementById("r-slno").textContent = d.sl_no;
+  const riskEl = document.getElementById("r-risk");
+  riskEl.className = `tag tag-${(d.risk_level||"unknown").toLowerCase()}`;
+  riskEl.textContent = d.risk_level || "?";
+
+  // Vulns
+  const vc = document.getElementById("scan-tab-vulns");
+  vc.innerHTML = (d.vulnerabilities||[]).length
+    ? d.vulnerabilities.map(v => `
+        <div class="vuln-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div class="vuln-title">${v.vuln_name||"?"}</div>${riskTag(v.severity)}
+          </div>
+          <div class="vuln-meta">Puerto: ${v.port||"?"} | Servicio: ${v.service||"?"}</div>
+          <div class="vuln-desc">${v.description||""}</div>
+          ${v.fix ? `<div class="vuln-fix">✓ FIX: ${v.fix}</div>` : ""}
+        </div>`).join("")
+    : "<div style='color:var(--dim);padding:12px;'>No se encontraron vulnerabilidades.</div>";
+
+  // Exploits
+  const ec = document.getElementById("scan-tab-exploits");
+  ec.innerHTML = (d.exploits||[]).length
+    ? d.exploits.map(e => `
+        <div class="vuln-card">
+          <div class="vuln-title">${e.exploit_name||"?"}</div>
+          <div class="vuln-meta">Tool: ${e.tool_used||"?"} | Resultado: ${e.result||"?"}</div>
+          <div class="vuln-desc">Payload: <code>${e.payload||"N/A"}</code></div>
+          ${e.notes ? `<div class="vuln-fix">${e.notes}</div>` : ""}
+        </div>`).join("")
+    : "<div style='color:var(--dim);padding:12px;'>Sin exploits sugeridos.</div>";
+
+  document.getElementById("scan-tab-analysis").innerHTML =
+    `<div class="output">${d.full_response||"Sin análisis"}</div>`;
+  document.getElementById("scan-tab-raw").innerHTML =
+    `<div class="output">${d.raw_scan_preview||"Sin datos raw"}</div>`;
+
+  document.getElementById("scan-results").style.display = "block";
+}
+
+// ════════════════════════════════════════════════════════════════
+// [2] NETWORK SCAN
+// ════════════════════════════════════════════════════════════════
+async function runNetworkScan() {
+  if (!API) { alert("Pega tu URL de ngrok."); return; }
+  setLoading("net-loader", true);
+  try {
+    const d = await apiFetch("/network-scan", {
+      method: "POST",
+      body: JSON.stringify({
+        label:  document.getElementById("net-label").value || "wifi_scan",
+        method: document.getElementById("net-method").value,
+      }),
+    });
+    document.getElementById("net-count").textContent = d.total_found;
+    // FIX #2: mostrar net-results siempre (incluso con 0 redes)
+    // FIX #3: parseInt de signal con "%" y fallback seguro para NaN
+    const nets = d.networks || [];
+    document.getElementById("net-table").innerHTML = nets.length
+      ? nets.map(n => {
+          const sig = parseInt(n.signal) || 0;   // parseInt("33%") → 33, parseInt("N/A") → 0
+          const bar = Math.max(10, Math.min(80, isNaN(sig) ? 10 : sig));
+          const sigColor = sig >= 70 ? "var(--accent)" : sig >= 40 ? "var(--yellow)" : "var(--red)";
+          return `<tr>
+            <td style="color:var(--accent)">${n.ssid||"?"}</td>
+            <td style="color:var(--dim);font-family:monospace;font-size:11px;">${n.bssid||"?"}</td>
+            <td style="text-align:center;">${n.channel||"?"}</td>
+            <td>
+              <div class="signal-bar" style="width:${bar}px;background:${sigColor};" title="${n.signal}"></div>
+              <span style="color:${sigColor};margin-left:4px;">${n.signal||"?"}</span>
+            </td>
+            <td>${n.security||n.encryption||"OPEN"}</td>
+          </tr>`;
+        }).join("")
+      : `<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:20px;">
+           ⚠ No se detectaron redes. ¿Está powershell.exe accesible desde WSL2?
+         </td></tr>`;
+    document.getElementById("net-results").style.display = "block";
+  } catch(e) {
+    showErr(e.message);
+  } finally {
+    setLoading("net-loader", false);
+  }
+}
+
+async function loadAllNetworks() {
+  if (!API) return;
+  try {
+    const d = await apiFetch("/list-networks");
+    document.getElementById("net-db-table").innerHTML = (d.networks||[]).map(n => `
+      <tr>
+        <td>${n.sl_no||"?"}</td>
+        <td style="color:var(--accent)">${n.ssid||"?"}</td>
+        <td style="color:var(--dim)">${n.bssid||"?"}</td>
+        <td>${n.channel||"?"}</td>
+        <td>${n.signal||"?"}</td>
+        <td>${n.security||"?"}</td>
+        <td style="font-size:10px;">${(n.scanned_at||"").slice(0,16)}</td>
+      </tr>`).join("");
+  } catch(e) { showErr(e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// [3] SKILL WORKSHOP
+// ════════════════════════════════════════════════════════════════
+async function createSkill() {
+  if (!API) { alert("Pega tu URL de ngrok."); return; }
+  setLoading("skill-loader", true);
+  try {
+    const d = await apiFetch("/create-skill", {
+      method: "POST",
+      body: JSON.stringify({
+        service:   document.getElementById("sk-service").value,
+        port:      document.getElementById("sk-port").value,
+        context:   document.getElementById("sk-context").value,
+        language:  document.getElementById("sk-lang").value,
+        auto_save: true,
+      }),
+    });
+    currentSkillFilename = d.skill_name + (d.language === "python" ? ".py" : ".sh");
+    document.getElementById("sp-name").textContent = d.skill_name;
+    document.getElementById("sp-desc").textContent = d.description;
+    document.getElementById("sp-code").textContent  = d.code;
+    document.getElementById("skill-preview").style.display = "block";
+    document.getElementById("skill-output").style.display  = "none";
+    loadSkills();
+  } catch(e) {
+    showErr(e.message);
+  } finally {
+    setLoading("skill-loader", false);
+  }
+}
+
+async function loadSkills() {
+  if (!API) return;
+  try {
+    const d  = await apiFetch("/skills");
+    const el = document.getElementById("skills-list");
+    if (!d.skills || !d.skills.length) {
+      el.innerHTML = "<div style='color:var(--dim);font-size:12px;text-align:center;padding:20px;'>Sin skills generados aún.</div>";
+      return;
+    }
+    el.innerHTML = d.skills.map(s => `
+      <div class="skill-card">
+        <div>
+          <div class="skill-name">${s.name}</div>
+          <div class="skill-type">${s.type} · ${s.size} bytes</div>
+        </div>
+        <button class="btn btn-primary" style="padding:6px 12px;font-size:10px;"
+          onclick="runSkillByName('${s.name}')">▶ RUN</button>
+      </div>`).join("");
+  } catch(e) { console.error(e); }
+}
+
+async function runGeneratedSkill() {
+  const target = document.getElementById("sp-target").value || "127.0.0.1";
+  if (!currentSkillFilename) return;
+  const out = document.getElementById("skill-output");
+  out.style.display = "block";
+  out.textContent = "Ejecutando...";
+  try {
+    const d = await apiFetch("/run-skill", {
+      method: "POST",
+      body: JSON.stringify({ filename: currentSkillFilename, target }),
+    });
+    out.textContent = d.output || "(sin output)";
+  } catch(e) {
+    out.textContent = `Error: ${e.message}`;
+  }
+}
+
+async function runSkillByName(name) {
+  const target = prompt("Target IP:", "127.0.0.1");
+  if (!target) return;
+  try {
+    const d = await apiFetch("/run-skill", {
+      method: "POST",
+      body: JSON.stringify({ filename: name, target }),
+    });
+    alert(d.output || "(sin output)");
+  } catch(e) { showErr(e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// [4] HISTORY
+// ════════════════════════════════════════════════════════════════
+async function loadHistory() {
+  if (!API) { alert("Pega tu URL de ngrok."); return; }
+  try {
+    const d = await apiFetch("/history");
+    document.getElementById("history-table").innerHTML = (d.sessions||[]).map(s => `
+      <tr class="clickable" onclick="loadSession(${s.sl_no})">
+        <td style="color:var(--accent)">#${s.sl_no}</td>
+        <td style="color:var(--textbright)">${s.target||"?"}</td>
+        <td style="font-size:11px;color:var(--dim)">${(s.scan_date||"").slice(0,16)}</td>
+        <td><span class="tag tag-info">${s.status||"?"}</span></td>
+        <td>
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:9px;"
+            onclick="event.stopPropagation();deleteSession(${s.sl_no})">✕ DEL</button>
+        </td>
+      </tr>`).join("");
+  } catch(e) { showErr(e.message); }
+}
+
+async function loadSession(sl_no) {
+  try {
+    const d = await apiFetch(`/session/${sl_no}`);
+    renderSessionDetail(sl_no, d);
+    document.getElementById("session-detail").style.display = "block";
+    document.getElementById("session-detail").scrollIntoView({ behavior:"smooth" });
+  } catch(e) { showErr(e.message); }
+}
+
+function renderSessionDetail(sl_no, d) {
+  const h = d.history || {};
+  document.getElementById("d-slno").textContent   = sl_no;
+  document.getElementById("d-target").textContent = h.target || "?";
+  const risk   = d.summary ? d.summary.risk_level : "UNKNOWN";
+  const riskEl = document.getElementById("d-risk");
+  riskEl.className  = `tag tag-${(risk||"unknown").toLowerCase()}`;
+  riskEl.textContent = risk || "?";
+
+  document.getElementById("detail-tab-vulns").innerHTML =
+    (d.vulns||[]).length ? d.vulns.map(v => `
+      <div class="vuln-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div class="vuln-title">${v.vuln_name||"?"}</div>${riskTag(v.severity)}
+        </div>
+        <div class="vuln-meta">Puerto: ${v.port||"?"} | Servicio: ${v.service||"?"}</div>
+        <div class="vuln-desc">${v.description||""}</div>
+      </div>`).join("") :
+    "<div style='color:var(--dim);padding:12px;'>Sin vulnerabilidades.</div>";
+
+  document.getElementById("detail-tab-exploits").innerHTML =
+    (d.exploits||[]).length ? d.exploits.map(e => `
+      <div class="vuln-card">
+        <div class="vuln-title">${e.exploit_name||"?"}</div>
+        <div class="vuln-meta">Tool: ${e.tool_used||"?"}</div>
+        <div class="vuln-desc">${e.payload||""}</div>
+      </div>`).join("") :
+    "<div style='color:var(--dim);padding:12px;'>Sin exploits.</div>";
+
+  document.getElementById("detail-tab-analysis").innerHTML =
+    d.summary
+      ? `<div class="output">${d.summary.ai_analysis||"Sin análisis"}</div>`
+      : "<div style='color:var(--dim);padding:12px;'>Sin análisis.</div>";
+
+  document.getElementById("detail-tab-wifi").innerHTML =
+    (d.wifi||[]).length
+      ? `<table><thead><tr><th>SSID</th><th>BSSID</th><th>CH</th><th>SEÑAL</th><th>SEG</th></tr></thead><tbody>
+          ${d.wifi.map(w=>`<tr>
+            <td style="color:var(--accent)">${w.ssid||"?"}</td>
+            <td>${w.bssid||"?"}</td><td>${w.channel||"?"}</td>
+            <td>${w.signal||"?"}</td><td>${w.security||"?"}</td>
+          </tr>`).join("")}
+        </tbody></table>`
+      : "<div style='color:var(--dim);padding:12px;'>Sin datos Wi-Fi.</div>";
+}
+
+async function deleteSession(sl_no) {
+  if (!confirm(`¿Borrar sesión SL# ${sl_no}?`)) return;
+  try {
+    await apiFetch(`/session/${sl_no}`, { method: "DELETE" });
+    loadHistory();
+    document.getElementById("session-detail").style.display = "none";
+  } catch(e) { showErr(e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// [5] KNOWLEDGE BASE
+// ════════════════════════════════════════════════════════════════
+async function loadKnowledge() {
+  if (!API) return;
+  const cat = document.getElementById("kb-cat").value;
+  // FIX: build query string without risk of double-slash
+  const qs  = cat ? `?limit=50&category=${encodeURIComponent(cat)}` : "?limit=50";
+  try {
+    const d  = await apiFetch(`/knowledge${qs}`);
+    const el = document.getElementById("knowledge-list");
+    if (!d.knowledge || !d.knowledge.length) {
+      el.innerHTML = "<div style='color:var(--dim);padding:16px;font-size:12px;'>Base de conocimiento vacía.</div>";
+      return;
+    }
+    el.innerHTML =
+      `<div class="know-entry" style="border-bottom:1px solid var(--border);margin-bottom:4px;">
+        <span style="color:var(--dim);font-size:10px;letter-spacing:2px;">CATEGORÍA</span>
+        <span style="color:var(--dim);font-size:10px;letter-spacing:2px;">SUJETO</span>
+        <span style="color:var(--dim);font-size:10px;letter-spacing:2px;text-align:center;">RESULTADO</span>
+        <span style="color:var(--dim);font-size:10px;letter-spacing:2px;">CONF</span>
+      </div>` +
+      d.knowledge.map(k => `
+        <div class="know-entry" title="${(k.details||'').replace(/"/g,"'")}">
+          <span class="know-cat">${(k.category||"").toUpperCase()}</span>
+          <span class="know-subj">${k.subject||""}</span>
+          <span class="know-out out-${k.outcome||'partial'}">${k.outcome||"?"}</span>
+          <span class="know-conf">${parseFloat(k.confidence||0).toFixed(2)}</span>
+        </div>`).join("");
+  } catch(e) { console.error(e); }
+}
+
+async function addKnowledge() {
+  if (!API) { alert("Pega tu URL de ngrok."); return; }
+  try {
+    await apiFetch("/knowledge", {
+      method: "POST",
+      body: JSON.stringify({
+        category:   document.getElementById("kb-add-cat").value,
+        subject:    document.getElementById("kb-add-subj").value,
+        outcome:    document.getElementById("kb-add-out").value,
+        confidence: parseFloat(document.getElementById("kb-add-conf").value),
+        details:    document.getElementById("kb-add-details").value,
+      }),
+    });
+    alert("Conocimiento guardado ✓");
+    loadKnowledge();
+  } catch(e) { showErr(e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// AUTO-PING every 30s
+// ════════════════════════════════════════════════════════════════
+setInterval(() => { if (API) testConnection(); }, 30000);
+</script>
+</body>
+</html>
