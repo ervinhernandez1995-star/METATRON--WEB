@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METATRON v2.1 — Neural Grid Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════
+   TOKENS
+════════════════════════════════════════════════════ */
+:root {
+  --bg:        #020509;
+  --bg2:       #050c14;
+  --panel:     #060e18;
+  --border:    #0c2030;
+  --border2:   #0f2d42;
+  --accent:    #00ffe7;
+  --accent2:   #00b8a8;
+  --red:       #ff2d4b;
+  --red2:      #c01535;
+  --yellow:    #ffd700;
+  --purple:    #a855f7;
+  --dim:       #163350;
+  --text:      #7aaccf;
+  --textbright:#c0e0f5;
+  --glow:      0 0 16px #00ffe740;
+  --glow-red:  0 0 16px #ff2d4b40;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-hud:  'Orbitron', sans-serif;
+  --font-body: 'Rajdhani', sans-serif;
+  --r:         6px;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── GRID BACKGROUND ── */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,255,231,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,231,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── SCANLINES ── */
+body::after {
+  content:'';
+  position:fixed; inset:0; z-index:999; pointer-events:none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px, rgba(0,0,0,.12) 2px, rgba(0,0,0,.12) 4px
+  );
+}
+
+/* ════════ LAYOUT ════════ */
+#app { position:relative; z-index:1; display:flex; flex-direction:column; min-height:100vh; }
+
+/* ════════ HEADER ════════ */
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 28px;
+  background: linear-gradient(90deg,#000c18,#020f1e);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:200;
+}
+.logo {
+  font-family:var(--font-hud); font-size:20px; font-weight:900;
+  color:var(--accent); text-shadow:var(--glow); letter-spacing:6px;
+  display:flex; align-items:center; gap:10px;
+}
+.logo-badge {
+  font-size:10px; background:rgba(0,255,231,.08); border:1px solid var(--accent2);
+  color:var(--accent2); padding:3px 8px; border-radius:3px; letter-spacing:3px;
+}
+#status-dot {
+  display:inline-block; width:9px; height:9px; border-radius:50%;
+  background:var(--red); margin-right:7px; transition:all .4s;
+}
+#status-dot.online { background:var(--accent); box-shadow:var(--glow); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 6px #00ffe780} 50%{box-shadow:0 0 18px #00ffe7b0} }
+
+.hdr-right { display:flex; align-items:center; gap:16px; font-size:12px; }
+.hdr-stat { color:var(--dim); font-size:11px; }
+.hdr-stat span { color:var(--textbright); }
+
+/* ════════ SHELL ════════ */
+.shell {
+  display:grid;
+  grid-template-columns:200px 1fr;
+  flex:1;
+}
+
+/* ════════ SIDEBAR ════════ */
+nav {
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  padding:20px 0;
+  position:sticky; top:57px; height:calc(100vh - 57px); overflow-y:auto;
+}
+nav a {
+  display:flex; align-items:center; gap:10px;
+  padding:13px 20px;
+  text-decoration:none; color:var(--text);
+  font-family:var(--font-hud); font-size:10px; letter-spacing:2px;
+  border-left:3px solid transparent;
+  transition:all .2s;
+  position:relative;
+}
+nav a:hover, nav a.active {
+  color:var(--accent); border-left-color:var(--accent);
+  background:rgba(0,255,231,.04); text-shadow:var(--glow);
+}
+nav a.active::after {
+  content:''; position:absolute; right:0; top:0; bottom:0; width:1px;
+  background:linear-gradient(180deg,transparent,var(--accent),transparent);
+}
+.nav-icon { font-size:14px; flex-shrink:0; }
+nav .section-label {
+  font-size:9px; letter-spacing:3px; color:var(--dim);
+  padding:18px 20px 8px; pointer-events:none;
+}
+
+/* ════════ MAIN ════════ */
+main { padding:24px 28px; overflow:hidden; }
+
+/* ════════ API BAR ════════ */
+.api-bar {
+  display:flex; gap:10px; margin-bottom:20px;
+  background:var(--panel); border:1px solid var(--border);
+  padding:12px 16px; border-radius:var(--r);
+  align-items:center;
+}
+.api-bar label { font-size:10px; color:var(--dim); letter-spacing:2px; white-space:nowrap; }
+.api-bar input {
+  flex:1; background:#02090f; border:1px solid var(--dim);
+  color:var(--accent); font-family:var(--font-mono); padding:8px 12px;
+  border-radius:4px; font-size:13px; min-width:0;
+}
+.api-bar input:focus { outline:none; border-color:var(--accent); box-shadow:var(--glow); }
+
+/* ════════ STATS ROW ════════ */
+.stats-row {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;
+}
+.stat-card {
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--r);
+  padding:14px 18px; position:relative; overflow:hidden; cursor:default;
+  transition:border-color .2s;
+}
+.stat-card:hover { border-color:var(--border2); }
+.stat-card::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--accent);
+}
+.stat-card.red::before { background:var(--red); }
+.stat-card.yellow::before { background:var(--yellow); }
+.stat-card.purple::before { background:var(--purple); }
+.stat-label { font-size:9px; letter-spacing:3px; color:var(--dim); margin-bottom:6px; font-family:var(--font-hud); }
+.stat-val { font-size:26px; font-family:var(--font-hud); color:var(--textbright); line-height:1; }
+.stat-sub { font-size:10px; color:var(--text); margin-top:4px; }
+
+/* ════════ PANEL ════════ */
+.panel {
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--r);
+  margin-bottom:20px; overflow:hidden;
+}
+.panel-head {
+  padding:11px 18px;
+  background:linear-gradient(90deg,#020d1c,#031626);
+  border-bottom:1px solid var(--border);
+  font-family:var(--font-hud); font-size:10px; letter-spacing:3px; color:var(--accent);
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+}
+.panel-body { padding:18px; }
+
+/* ════════ INPUTS ════════ */
+input[type=text], input[type=number], select, textarea {
+  width:100%; background:#02090f; border:1px solid var(--dim);
+  color:var(--textbright); font-family:var(--font-mono);
+  padding:9px 12px; border-radius:4px; font-size:13px; margin-bottom:12px;
+  transition:border-color .2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline:none; border-color:var(--accent); box-shadow:var(--glow);
+}
+label { display:block; font-size:10px; color:var(--text); margin-bottom:4px; letter-spacing:1px; }
+.row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+/* ════════ BUTTONS ════════ */
+.btn {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 20px; border:none; border-radius:4px;
+  font-family:var(--font-hud); font-size:10px; letter-spacing:2px;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.btn-primary {
+  background:transparent; color:var(--accent); border:1px solid var(--accent);
+}
+.btn-primary:hover { background:var(--accent); color:var(--bg); box-shadow:var(--glow); }
+.btn-danger {
+  background:transparent; color:var(--red); border:1px solid var(--red);
+}
+.btn-danger:hover { background:var(--red); color:#fff; box-shadow:var(--glow-red); }
+.btn-ghost {
+  background:transparent; color:var(--text); border:1px solid var(--border2);
+}
+.btn-ghost:hover { border-color:var(--text); color:var(--textbright); }
+.btn:disabled { opacity:.35; cursor:not-allowed; pointer-events:none; }
+.btn-sm { padding:5px 12px; font-size:9px; }
+.btn-xs { padding:3px 9px; font-size:9px; }
+
+/* ════════ TAGS ════════ */
+.tag {
+  display:inline-block; padding:2px 9px; border-radius:3px;
+  font-size:10px; font-family:var(--font-hud); letter-spacing:1px;
+}
+.tag-critical { background:#2a0010; color:var(--red);    border:1px solid #6a0022; }
+.tag-high     { background:#1a1200; color:var(--yellow); border:1px solid #503c00; }
+.tag-medium   { background:#001a20; color:#00d4ff;       border:1px solid #005068; }
+.tag-low      { background:#001a10; color:#00ff88;       border:1px solid #004a30; }
+.tag-info     { background:#0a0a1e; color:#9999ff;       border:1px solid #222266; }
+.tag-unknown  { background:#111;    color:#555;          border:1px solid #333; }
+.tag-open     { background:#001a10; color:#00ff88;       border:1px solid #004a30; }
+.tag-wpa2     { background:#1a1200; color:var(--yellow); border:1px solid #503c00; }
+.tag-wpa3     { background:#001a20; color:#00d4ff;       border:1px solid #005068; }
+
+/* ════════ OUTPUT / CODE ════════ */
+.output {
+  background:#010810; border:1px solid var(--dim); border-radius:4px;
+  padding:14px; font-size:12px; color:var(--textbright);
+  max-height:360px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;
+  line-height:1.75;
+}
+.output::-webkit-scrollbar { width:4px; }
+.output::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+.code-block {
+  background:#010810; border:1px solid var(--dim); border-radius:4px;
+  padding:14px; font-size:11px; color:#a0d8f0;
+  max-height:280px; overflow-y:auto; white-space:pre; font-family:var(--font-mono);
+}
+.code-block::-webkit-scrollbar { width:4px; }
+.code-block::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+
+/* ════════ LOADER ════════ */
+.loader { display:none; align-items:center; gap:10px; color:var(--accent); font-size:12px; margin-top:12px; }
+.loader.show { display:flex; }
+.loader-bar { width:200px; height:3px; background:var(--dim); border-radius:2px; overflow:hidden; }
+.loader-fill { height:100%; width:0%; background:var(--accent); animation:load 1.8s ease-in-out infinite; }
+@keyframes load { 0%{width:0%;margin-left:0} 50%{width:70%;margin-left:0} 100%{width:0%;margin-left:100%} }
+
+/* ════════ TABLES ════════ */
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th {
+  font-family:var(--font-hud); font-size:9px; letter-spacing:2px;
+  color:var(--accent); border-bottom:1px solid var(--border);
+  padding:8px 12px; text-align:left;
+}
+td { padding:9px 12px; border-bottom:1px solid #08182a; color:var(--textbright); vertical-align:middle; }
+tr:hover td { background:rgba(0,255,231,.025); }
+tr.clickable { cursor:pointer; }
+
+/* ════════ TABS ════════ */
+.tabs { display:flex; border-bottom:1px solid var(--border); }
+.tab {
+  padding:10px 18px; cursor:pointer;
+  font-family:var(--font-hud); font-size:9px; letter-spacing:2px;
+  color:var(--text); border-bottom:2px solid transparent;
+  transition:all .2s; white-space:nowrap;
+}
+.tab:hover { color:var(--textbright); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-content { display:none; padding:18px; }
+.tab-content.active { display:block; }
+
+/* ════════ CARDS ════════ */
+.vuln-card {
+  background:#020c18; border:1px solid var(--border); border-radius:var(--r);
+  padding:14px; margin-bottom:10px;
+  transition:border-color .2s;
+}
+.vuln-card:hover { border-color:var(--border2); }
+.vuln-title { font-size:13px; color:var(--textbright); margin-bottom:6px; }
+.vuln-meta  { font-size:11px; color:var(--text); margin-bottom:8px; }
+.vuln-desc  { font-size:11px; color:#6090b0; line-height:1.6; }
+.vuln-fix   { font-size:11px; color:#00cc80; margin-top:8px; border-top:1px solid #0a1a28; padding-top:8px; }
+
+.skill-card {
+  background:#020e1c; border:1px solid var(--border); border-radius:var(--r);
+  padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;
+  transition:border-color .2s;
+}
+.skill-card:hover { border-color:var(--dim); }
+.skill-name { color:var(--accent); font-size:12px; }
+.skill-type { font-size:10px; color:var(--text); margin-top:2px; }
+
+/* ════════ NETWORK CARDS ════════ */
+.net-card {
+  background:#020c18; border:1px solid var(--border); border-radius:var(--r);
+  margin-bottom:10px; overflow:hidden; transition:border-color .25s;
+  cursor:pointer;
+}
+.net-card:hover { border-color:var(--border2); }
+.net-card.expanded { border-color:var(--accent); }
+.net-card-head {
+  padding:12px 16px; display:flex; align-items:center; gap:14px;
+  justify-content:space-between;
+}
+.net-ssid { color:var(--accent); font-size:13px; font-family:var(--font-hud); letter-spacing:1px; }
+.net-meta  { font-size:11px; color:var(--text); margin-top:3px; }
+.net-card-body {
+  display:none; padding:14px 16px; border-top:1px solid var(--border);
+  animation:fadeSlide .2s ease;
+}
+.net-card.expanded .net-card-body { display:block; }
+@keyframes fadeSlide { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+.signal-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:50px; }
+.signal-bars { display:flex; align-items:flex-end; gap:2px; height:18px; }
+.signal-bar-v {
+  width:5px; border-radius:1px; background:var(--dim); transition:background .3s;
+}
+.signal-bar-v.lit { background:var(--accent); }
+.signal-bar-v.lit.yellow { background:var(--yellow); }
+.signal-bar-v.lit.red { background:var(--red); }
+.signal-pct { font-size:10px; color:var(--text); font-family:var(--font-hud); }
+
+/* ════════ ACTION GRID ════════ */
+.action-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; margin-top:12px;
+}
+.action-btn {
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  padding:10px 8px; background:#010c18; border:1px solid var(--border2); border-radius:4px;
+  cursor:pointer; transition:all .2s; font-family:var(--font-hud); font-size:9px;
+  letter-spacing:1px; color:var(--text); text-align:center;
+}
+.action-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(0,255,231,.04); }
+.action-btn.danger:hover { border-color:var(--red); color:var(--red); background:rgba(255,45,75,.04); }
+.action-icon { font-size:18px; line-height:1; }
+
+/* ════════ TERMINAL OUTPUT ════════ */
+.terminal {
+  background:#010810; border:1px solid var(--dim); border-radius:4px;
+  font-family:var(--font-mono); font-size:11px; line-height:1.8;
+  padding:12px 14px; max-height:220px; overflow-y:auto;
+  color:var(--textbright); margin-top:12px;
+}
+.terminal::-webkit-scrollbar { width:3px; }
+.terminal::-webkit-scrollbar-thumb { background:var(--dim); }
+.t-line-ok   { color:#00ff88; }
+.t-line-warn { color:var(--yellow); }
+.t-line-err  { color:var(--red); }
+.t-line-info { color:var(--accent); }
+
+/* ════════ KNOWLEDGE ════════ */
+.know-entry {
+  padding:9px 14px; border-bottom:1px solid #07182a;
+  display:grid; grid-template-columns:90px 1fr 80px 55px;
+  gap:10px; font-size:11px; transition:background .15s;
+}
+.know-entry:hover { background:rgba(0,255,231,.02); }
+.know-cat  { color:var(--accent); font-family:var(--font-hud); font-size:9px; letter-spacing:1px; }
+.know-subj { color:var(--textbright); }
+.know-out  { text-align:center; }
+.know-conf { color:var(--yellow); font-family:var(--font-hud); }
+.out-success { color:#00ff88; } .out-failure { color:var(--red); } .out-partial { color:var(--yellow); }
+
+/* ════════ SECTION VISIBILITY ════════ */
+.section { display:none; }
+.section.active { display:block; animation:fadeIn .25s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ════════ TOASTS ════════ */
+#toast-container { position:fixed; bottom:24px; right:24px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
+.toast {
+  padding:11px 18px; border-radius:4px; font-size:12px; font-family:var(--font-mono);
+  display:flex; align-items:center; gap:10px; max-width:380px;
+  animation:slideIn .25s ease;
+  border:1px solid;
+}
+.toast.ok  { background:#011208; border-color:#00ff88; color:#00ff88; }
+.toast.err { background:#120106; border-color:var(--red); color:var(--red); }
+.toast.info { background:#010c18; border-color:var(--accent); color:var(--accent); }
+@keyframes slideIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
+
+/* ════════ PROGRESS BAR ════════ */
+.prog-wrap { background:#01080f; border-radius:2px; height:4px; overflow:hidden; margin:8px 0; }
+.prog-fill { height:100%; border-radius:2px; transition:width .5s ease; }
+
+/* ════════ FILTER BAR ════════ */
+.filter-bar {
+  display:flex; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap;
+}
+.filter-bar input, .filter-bar select { margin:0; width:auto; flex:1; min-width:120px; }
+
+/* ════════ RESPONSIVE ════════ */
+@media(max-width:768px) {
+  .shell { grid-template-columns:1fr; }
+  nav { display:flex; overflow-x:auto; padding:8px; position:static; height:auto; flex-shrink:0; }
+  nav a { white-space:nowrap; padding:10px 14px; border-left:none; border-bottom:2px solid transparent; flex-direction:column; gap:4px; font-size:9px; }
+  nav a.active { border-bottom-color:var(--accent); }
+  .nav-icon { font-size:16px; }
+  .section-label { display:none; }
+  .stats-row { grid-template-columns:1fr 1fr; }
+  .row { grid-template-columns:1fr; }
+  main { padding:16px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ════════ HEADER ════════ -->
+<header>
+  <div class="logo">
+    META<span style="color:var(--red)">TRON</span>
+    <span class="logo-badge">v2.1</span>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-stat">SESIONES <span id="hdr-sessions">—</span></div>
+    <div class="hdr-stat">REDES <span id="hdr-nets">—</span></div>
+    <div style="display:flex;align-items:center;font-size:12px;">
+      <span id="status-dot"></span>
+      <span id="status-text" style="color:var(--text)">—</span>
+    </div>
+    <span id="clock" style="font-size:11px;color:var(--dim);font-family:var(--font-hud);"></span>
+  </div>
+</header>
+
+<!-- ════════ SHELL ════════ -->
+<div class="shell">
+
+  <!-- ════════ SIDEBAR ════════ -->
+  <nav>
+    <div class="section-label">OPERACIONES</div>
+    <a href="#" class="nav-link active" data-section="dashboard">
+      <span class="nav-icon">◈</span> DASHBOARD
+    </a>
+    <a href="#" class="nav-link" data-section="scan">
+      <span class="nav-icon">⌖</span> SCAN TARGET
+    </a>
+    <a href="#" class="nav-link" data-section="network">
+      <span class="nav-icon">◉</span> NETWORK SCAN
+    </a>
+    <div class="section-label">HERRAMIENTAS</div>
+    <a href="#" class="nav-link" data-section="skills">
+      <span class="nav-icon">⚙</span> SKILL WORKSHOP
+    </a>
+    <a href="#" class="nav-link" data-section="history">
+      <span class="nav-icon">≡</span> HISTORY
+    </a>
+    <a href="#" class="nav-link" data-section="knowledge">
+      <span class="nav-icon">◆</span> KNOWLEDGE
+    </a>
+  </nav>
+
+  <!-- ════════ MAIN ════════ -->
+  <main>
+
+    <!-- API BAR -->
+    <div class="api-bar">
+      <label>NGROK URL</label>
+      <input type="text" id="api-url" placeholder="https://xxxx.ngrok-free.app" />
+      <button class="btn btn-primary btn-sm" onclick="testConnection()">▶ CONECTAR</button>
+      <button class="btn btn-ghost btn-sm" onclick="showSection('dashboard')">⌂</button>
+    </div>
+
+    <!-- ════════ [0] DASHBOARD ════════ -->
+    <div class="section active" id="section-dashboard">
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">SESIONES TOTALES</div>
+          <div class="stat-val" id="stat-sessions">—</div>
+          <div class="stat-sub">histórico completo</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">VULNERABILIDADES</div>
+          <div class="stat-val" id="stat-vulns" style="color:var(--red)">—</div>
+          <div class="stat-sub">última sesión</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-label">REDES DETECTADAS</div>
+          <div class="stat-val" id="stat-nets" style="color:var(--yellow)">—</div>
+          <div class="stat-sub">en base de datos</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">SKILLS CREADOS</div>
+          <div class="stat-val" id="stat-skills" style="color:var(--purple)">—</div>
+          <div class="stat-sub">disponibles</div>
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="panel">
+        <div class="panel-head">⚡ ACCIONES RÁPIDAS</div>
+        <div class="panel-body">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <button class="btn btn-primary" onclick="showSection('scan')">⌖ NUEVO SCAN</button>
+            <button class="btn btn-primary" onclick="showSection('network')">◉ ESCANEAR REDES</button>
+            <button class="btn btn-primary" onclick="showSection('skills')">⚙ GENERAR SKILL</button>
+            <button class="btn btn-ghost" onclick="loadDashboard()">↻ ACTUALIZAR</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT HISTORY -->
+      <div class="panel">
+        <div class="panel-head">
+          ≡ SESIONES RECIENTES
+          <button class="btn btn-ghost btn-xs" onclick="showSection('history')">VER TODO →</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>SL#</th><th>TARGET</th><th>FECHA</th><th>RIESGO</th><th></th></tr></thead>
+            <tbody id="dash-history"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RECENT NETWORKS -->
+      <div class="panel">
+        <div class="panel-head">
+          ◉ ÚLTIMAS REDES
+          <button class="btn btn-ghost btn-xs" onclick="showSection('network')">ESCANEAR →</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>SSID</th><th>BSSID</th><th>SEÑAL</th><th>SEGURIDAD</th><th>FECHA</th></tr></thead>
+            <tbody id="dash-networks"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ [1] SCAN TARGET ════════ -->
+    <div class="section" id="section-scan">
+      <div class="panel">
+        <div class="panel-head">⌖ ANÁLISIS DE OBJETIVO</div>
+        <div class="panel-body">
+          <div class="row">
+            <div>
+              <label>TARGET (IP o dominio)</label>
+              <input type="text" id="scan-target" placeholder="192.168.1.1 / example.com" />
+            </div>
+            <div>
+              <label>MÚLTIPLES TARGETS (uno por línea)</label>
+              <textarea id="scan-multi" rows="3" style="resize:vertical;" placeholder="Opcional: uno por línea para escaneo paralelo"></textarea>
+            </div>
+          </div>
+
+          <label style="margin-bottom:8px;">HERRAMIENTAS</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);cursor:pointer;">
+              <input type="checkbox" id="t-nmap-svc" checked style="width:auto;margin:0;accent-color:var(--accent);"> nmap service
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);cursor:pointer;">
+              <input type="checkbox" id="t-nmap-vuln" style="width:auto;margin:0;accent-color:var(--accent);"> nmap vuln
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);cursor:pointer;">
+              <input type="checkbox" id="t-whatweb" style="width:auto;margin:0;accent-color:var(--accent);"> whatweb
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);cursor:pointer;">
+              <input type="checkbox" id="t-whois" style="width:auto;margin:0;accent-color:var(--accent);"> whois
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--textbright);cursor:pointer;">
+              <input type="checkbox" id="t-dig" style="width:auto;margin:0;accent-color:var(--accent);"> dig/nslookup
+            </label>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btn-scan" onclick="runScan()">▶ INICIAR ANÁLISIS</button>
+            <button class="btn btn-ghost" onclick="runMultiScan()" id="btn-multi-scan">⊕ ESCANEO PARALELO</button>
+          </div>
+
+          <div class="loader" id="scan-loader" style="margin-top:14px;">
+            <div class="loader-bar"><div class="loader-fill"></div></div>
+            <span id="scan-status-msg">Ejecutando herramientas...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MULTI SCAN PROGRESS -->
+      <div id="multi-scan-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">⊕ ESCANEO PARALELO</div>
+          <div class="panel-body" id="multi-scan-progress"></div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="scan-results" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            RESULTADOS — SL# <span id="r-slno">—</span> &nbsp;|&nbsp; <span id="r-target">—</span>
+            <span id="r-risk" class="tag tag-unknown">—</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active"  onclick="switchTab('scan','vulns')">VULNERABILIDADES</div>
+            <div class="tab" onclick="switchTab('scan','exploits')">EXPLOITS</div>
+            <div class="tab" onclick="switchTab('scan','analysis')">ANÁLISIS IA</div>
+            <div class="tab" onclick="switchTab('scan','raw')">RAW SCAN</div>
+          </div>
+          <div class="tab-content active" id="scan-tab-vulns"></div>
+          <div class="tab-content" id="scan-tab-exploits"></div>
+          <div class="tab-content" id="scan-tab-analysis"></div>
+          <div class="tab-content" id="scan-tab-raw"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ [2] NETWORK SCAN ════════ -->
+    <div class="section" id="section-network">
+      <div class="panel">
+        <div class="panel-head">◉ SCANNER PRO — REDES WI-FI</div>
+        <div class="panel-body">
+          <div class="row">
+            <div>
+              <label>ETIQUETA DE SESIÓN</label>
+              <input type="text" id="net-label" placeholder="home_wifi" />
+              <label>MÉTODO DE ESCANEO</label>
+              <select id="net-method">
+                <option value="powershell">netsh / powershell.exe (Windows/WSL2 ✓)</option>
+                <option value="nmcli">nmcli (Linux nativo)</option>
+                <option value="nmap">nmap subnet</option>
+                <option value="all">Todos los métodos</option>
+              </select>
+            </div>
+            <div>
+              <label>FILTRAR POR SSID</label>
+              <input type="text" id="net-filter" placeholder="Filtrar resultados..." oninput="filterNetworks()" />
+              <label>ORDENAR POR</label>
+              <select id="net-sort" onchange="sortNetworks()">
+                <option value="signal">Señal (mayor → menor)</option>
+                <option value="ssid">SSID (A → Z)</option>
+                <option value="security">Seguridad</option>
+                <option value="channel">Canal</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="runNetworkScan()">▶ ESCANEAR REDES</button>
+            <button class="btn btn-ghost" onclick="loadAllNetworks()">↻ CARGAR DB</button>
+          </div>
+          <div class="loader" id="net-loader" style="margin-top:14px;">
+            <div class="loader-bar"><div class="loader-fill"></div></div>
+            <span>Escaneando redes...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- NETWORK CARDS (interactivas) -->
+      <div id="net-results" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            REDES DETECTADAS &nbsp;—&nbsp; <span id="net-count">0</span> encontradas
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-xs" onclick="expandAllNets()">EXPANDIR TODO</button>
+              <button class="btn btn-ghost btn-xs" onclick="collapseAllNets()">COLAPSAR</button>
+            </div>
+          </div>
+          <div class="panel-body" id="net-cards"></div>
+        </div>
+      </div>
+
+      <!-- TERMINAL OUTPUT (acciones de red) -->
+      <div id="net-action-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">⚡ SALIDA DE ACCIÓN — <span id="net-action-title">—</span></div>
+          <div class="panel-body">
+            <div class="terminal" id="net-action-output"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DB TABLE -->
+      <div class="panel">
+        <div class="panel-head">ÚLTIMAS REDES EN DB <span id="db-net-count" style="color:var(--dim);font-size:10px;"></span></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>SL#</th><th>SSID</th><th>BSSID</th><th>CH</th><th>SEÑAL</th><th>SEGURIDAD</th><th>FECHA</th></tr></thead>
+            <tbody id="net-db-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ [3] SKILL WORKSHOP ════════ -->
+    <div class="section" id="section-skills">
+      <div class="row">
+        <div>
+          <div class="panel">
+            <div class="panel-head">⚙ GENERAR SKILL (IA)</div>
+            <div class="panel-body">
+              <label>SERVICIO</label>
+              <input type="text" id="sk-service" placeholder="SSH, SMB, HTTP, FTP..." />
+              <label>PUERTO</label>
+              <input type="text" id="sk-port" placeholder="22, 445, 80..." />
+              <label>CONTEXTO / NOTAS</label>
+              <textarea id="sk-context" rows="3" style="resize:vertical;"
+                placeholder="OpenSSH 7.4 vulnerable, anonymous FTP enabled..."></textarea>
+              <label>LENGUAJE</label>
+              <select id="sk-lang">
+                <option value="python">Python</option>
+                <option value="bash">Bash</option>
+              </select>
+              <button class="btn btn-primary" onclick="createSkill()">▶ GENERAR SKILL</button>
+              <div class="loader" id="skill-loader">
+                <div class="loader-bar"><div class="loader-fill"></div></div>
+                <span>Generando con IA...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-head">
+              SKILLS DISPONIBLES
+              <button class="btn btn-ghost btn-xs" onclick="loadSkills()">↻</button>
+            </div>
+            <div class="panel-body" id="skills-list">
+              <div style="color:var(--dim);font-size:12px;text-align:center;padding:20px;">Sin skills aún.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="skill-preview" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">SKILL GENERADO — <span id="sp-name">—</span></div>
+          <div class="panel-body">
+            <div style="margin-bottom:10px;font-size:12px;color:var(--textbright);" id="sp-desc"></div>
+            <div class="code-block" id="sp-code"></div>
+            <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+              <label style="margin:0;white-space:nowrap;">TARGET:</label>
+              <input type="text" id="sp-target" placeholder="127.0.0.1" style="width:200px;margin:0;" />
+              <button class="btn btn-primary" onclick="runGeneratedSkill()">▶ EJECUTAR</button>
+            </div>
+            <div class="output" id="skill-output" style="margin-top:12px;display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ [4] HISTORY ════════ -->
+    <div class="section" id="section-history">
+      <div class="panel">
+        <div class="panel-head">
+          ≡ HISTORIAL DE SESIONES
+          <button class="btn btn-ghost btn-xs" onclick="loadHistory()">↻ ACTUALIZAR</button>
+        </div>
+        <div class="filter-bar">
+          <input type="text" id="hist-filter" placeholder="Filtrar por target..." oninput="filterHistory()" style="margin:0;" />
+          <select id="hist-risk-filter" onchange="filterHistory()" style="margin:0;width:auto;">
+            <option value="">Todos los riesgos</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>SL#</th><th>TARGET</th><th>FECHA</th><th>STATUS</th><th>ACCIONES</th></tr></thead>
+            <tbody id="history-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="session-detail" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            DETALLE — SL# <span id="d-slno">—</span> &nbsp;|&nbsp; <span id="d-target">—</span>
+            <span id="d-risk" class="tag tag-unknown">—</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active" onclick="switchTab('detail','vulns')">VULNS</div>
+            <div class="tab" onclick="switchTab('detail','exploits')">EXPLOITS</div>
+            <div class="tab" onclick="switchTab('detail','analysis')">ANÁLISIS IA</div>
+            <div class="tab" onclick="switchTab('detail','wifi')">WI-FI</div>
+          </div>
+          <div class="tab-content active" id="detail-tab-vulns"></div>
+          <div class="tab-content" id="detail-tab-exploits"></div>
+          <div class="tab-content" id="detail-tab-analysis"></div>
+          <div class="tab-content" id="detail-tab-wifi"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ [5] KNOWLEDGE ════════ -->
+    <div class="section" id="section-knowledge">
+      <div class="panel">
+        <div class="panel-head">
+          ◆ BASE DE CONOCIMIENTO ADAPTATIVA
+          <button class="btn btn-ghost btn-xs" onclick="loadKnowledge()">↻</button>
+        </div>
+        <div style="display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+          <select id="kb-cat" style="width:180px;margin:0;">
+            <option value="">Todas las categorías</option>
+            <option value="attack">attack</option>
+            <option value="defense">defense</option>
+            <option value="service">service</option>
+            <option value="skill">skill</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="loadKnowledge()">FILTRAR</button>
+        </div>
+        <div id="knowledge-list">
+          <div style="padding:16px;font-size:12px;color:var(--dim);">Cargando...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">+ AGREGAR CONOCIMIENTO MANUAL</div>
+        <div class="panel-body">
+          <div class="row">
+            <div>
+              <label>CATEGORÍA</label>
+              <select id="kb-add-cat" style="margin-bottom:12px;">
+                <option value="attack">attack</option>
+                <option value="defense">defense</option>
+                <option value="service">service</option>
+                <option value="skill">skill</option>
+              </select>
+              <label>RESULTADO</label>
+              <select id="kb-add-out" style="margin-bottom:12px;">
+                <option value="success">success</option>
+                <option value="failure">failure</option>
+                <option value="partial">partial</option>
+              </select>
+              <label>CONFIANZA (0.0–1.0)</label>
+              <input type="number" id="kb-add-conf" value="0.7" min="0" max="1" step="0.1" style="margin-bottom:12px;">
+            </div>
+            <div>
+              <label>SUJETO</label>
+              <input type="text" id="kb-add-subj" placeholder="Ej: SSH brute force en puerto 22" />
+              <label>DETALLES</label>
+              <textarea id="kb-add-details" rows="4" style="resize:vertical;" placeholder="Notas adicionales..."></textarea>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addKnowledge()">+ GUARDAR</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- .shell -->
+</div><!-- #app -->
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let API = (localStorage.getItem("metatron_api") || "").replace(/\/+$/, "");
+let currentSkillFilename = "";
+let _allNetworks  = [];   // cache para filtrar/ordenar
+let _allHistory   = [];   // cache para filtrar
+let _historyRisk  = {};   // sl_no → risk_level (cargado en background)
+
+// ════════════════════════════════════════════════════════════
+// apiFetch — cliente único
+// ════════════════════════════════════════════════════════════
+async function apiFetch(path, optionsOrBody = {}, legacyMethod = null) {
+  const base  = API.replace(/\/+$/, "");
+  const route = path.startsWith("/") ? path : "/" + path;
+  let opts = {};
+  if (optionsOrBody && typeof optionsOrBody === "object" &&
+      ("method" in optionsOrBody || "headers" in optionsOrBody || typeof optionsOrBody.body === "string")) {
+    opts = { ...optionsOrBody };
+  } else if (legacyMethod) {
+    opts = { method: legacyMethod, body: JSON.stringify(optionsOrBody) };
+  } else if (optionsOrBody && Object.keys(optionsOrBody).length) {
+    opts = { method: "POST", body: JSON.stringify(optionsOrBody) };
+  }
+  const callerHeaders = opts.headers || {};
+  opts.headers = {
+    "ngrok-skip-browser-warning": "true",
+    "Accept": "application/json",
+    ...callerHeaders,
+  };
+  if (opts.body && !opts.headers["Content-Type"]) {
+    opts.headers["Content-Type"] = "application/json";
+  }
+  const response = await fetch(base + route, opts);
+  const ct = response.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    const txt = await response.text();
+    throw new Error(`Respuesta no-JSON (${response.status}). ¿ngrok corriendo?\n${txt.slice(0,200)}`);
+  }
+  const data = await response.json();
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${data?.detail || JSON.stringify(data)}`);
+  return data;
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+function toast(msg, type = "info", duration = 3500) {
+  const icons = { ok:"✓", err:"✗", info:"◈" };
+  const t = document.createElement("div");
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]||"◈"}</span><span>${msg}</span>`;
+  document.getElementById("toast-container").appendChild(t);
+  setTimeout(() => t.remove(), duration);
+}
+
+// ════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════
+function showSection(name) {
+  document.querySelectorAll(".nav-link").forEach(a => a.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  const link = document.querySelector(`.nav-link[data-section="${name}"]`);
+  if (link) link.classList.add("active");
+  const sec = document.getElementById(`section-${name}`);
+  if (sec) sec.classList.add("active");
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+document.querySelectorAll(".nav-link").forEach(a => {
+  a.addEventListener("click", e => {
+    e.preventDefault();
+    showSection(a.dataset.section);
+    if (a.dataset.section === "history") loadHistory();
+    if (a.dataset.section === "knowledge") loadKnowledge();
+    if (a.dataset.section === "skills") loadSkills();
+    if (a.dataset.section === "dashboard") loadDashboard();
+    if (a.dataset.section === "network") loadAllNetworks();
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════
+function switchTab(group, tab) {
+  const prefix  = group === "scan" ? "scan-tab" : "detail-tab";
+  const section = group === "scan" ? "section-scan" : "section-history";
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(`#${section} .tab`).forEach(t => t.classList.remove("active"));
+  const el = document.getElementById(`${prefix}-${tab}`);
+  if (el) el.classList.add("active");
+  event.target.classList.add("active");
+}
+
+// ════════════════════════════════════════════════════════════
+// CLOCK + URL PERSISTENCE
+// ════════════════════════════════════════════════════════════
+setInterval(() => {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("es-MX", { hour12: false });
+}, 1000);
+
+const apiInput = document.getElementById("api-url");
+apiInput.value = API;
+apiInput.addEventListener("input", e => {
+  API = e.target.value.trim().replace(/\/+$/, "");
+  localStorage.setItem("metatron_api", API);
+});
+
+// ════════════════════════════════════════════════════════════
+// CONNECTION TEST
+// ════════════════════════════════════════════════════════════
+async function testConnection() {
+  API = apiInput.value.trim().replace(/\/+$/, "");
+  localStorage.setItem("metatron_api", API);
+  const dot  = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
+  text.textContent = "Conectando..."; dot.className = "";
+  if (!API) { text.textContent = "Sin URL"; return; }
+  try {
+    const d = await apiFetch("/");
+    dot.className = "online";
+    text.textContent = `ONLINE — ${d.model || "METATRON v2"}`;
+    toast("Conexión establecida ✓", "ok");
+    loadDashboard();
+  } catch(e) {
+    dot.className = "";
+    text.textContent = `OFFLINE — ${e.message.slice(0,60)}`;
+    toast("Sin conexión con backend", "err");
+  }
+}
+if (API) setTimeout(testConnection, 800);
+
+// ════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════
+function riskTag(level) {
+  const l = (level || "").toUpperCase();
+  const map = { CRITICAL:"critical", HIGH:"high", MEDIUM:"medium", LOW:"low", INFO:"info" };
+  return `<span class="tag tag-${map[l]||"unknown"}">${l||"UNKNOWN"}</span>`;
+}
+function setLoading(id, show) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle("show", show);
+}
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function signalBars(pct) {
+  const n   = parseInt(pct) || 0;
+  const lvl = n >= 70 ? "lit" : n >= 40 ? "lit yellow" : "lit red";
+  const bars = [20, 40, 60, 80].map((t, i) => {
+    const h   = 6 + i * 3;
+    const cls = n >= t ? lvl : "";
+    return `<div class="signal-bar-v ${cls}" style="height:${h}px;"></div>`;
+  }).join("");
+  return `<div class="signal-wrap">
+    <div class="signal-bars">${bars}</div>
+    <div class="signal-pct">${pct||"?"}${typeof pct==="number"||String(pct).includes("%")?"":"%"}</div>
+  </div>`;
+}
+function secTag(sec) {
+  const s = (sec||"").toUpperCase();
+  if (s.includes("WPA3")) return `<span class="tag tag-wpa3">WPA3</span>`;
+  if (s.includes("WPA2")) return `<span class="tag tag-wpa2">WPA2</span>`;
+  if (s.includes("WPA"))  return `<span class="tag tag-wpa2">WPA</span>`;
+  if (s.includes("OPEN") || s === "N/A") return `<span class="tag tag-open" style="color:var(--red);border-color:var(--red2);">OPEN</span>`;
+  return `<span class="tag tag-unknown">${esc(sec||"?")}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// [0] DASHBOARD
+// ════════════════════════════════════════════════════════════
+async function loadDashboard() {
+  if (!API) return;
+  try {
+    const [hist, nets, skills] = await Promise.all([
+      apiFetch("/history").catch(()=>({sessions:[]})),
+      apiFetch("/list-networks").catch(()=>({networks:[],total:0})),
+      apiFetch("/skills").catch(()=>({skills:[]})),
+    ]);
+
+    const sessions = hist.sessions || [];
+    const total    = sessions.length;
+    document.getElementById("stat-sessions").textContent  = total;
+    document.getElementById("stat-nets").textContent      = nets.total || 0;
+    document.getElementById("stat-skills").textContent    = (skills.skills||[]).length;
+    document.getElementById("hdr-sessions").textContent   = total;
+    document.getElementById("hdr-nets").textContent       = nets.total || 0;
+
+    // Recent history (last 6)
+    document.getElementById("dash-history").innerHTML = sessions.slice(0,6).map(s => `
+      <tr class="clickable" onclick="showSection('history');setTimeout(()=>loadSession(${s.sl_no}),300);">
+        <td style="color:var(--accent)">#${s.sl_no}</td>
+        <td style="color:var(--textbright)">${esc(s.target||"?")}</td>
+        <td style="font-size:10px;color:var(--dim)">${(s.scan_date||"").slice(0,16)}</td>
+        <td><span class="tag tag-info">${esc(s.status||"?")}</span></td>
+        <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();showSection('history');setTimeout(()=>loadSession(${s.sl_no}),300);">DETALLE →</button></td>
+      </tr>`).join("") || `<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:16px;">Sin sesiones aún.</td></tr>`;
+
+    // Recent networks (last 5)
+    const recentNets = (nets.networks||[]).slice(0,5);
+    document.getElementById("dash-networks").innerHTML = recentNets.map(n => `
+      <tr>
+        <td style="color:var(--accent)">${esc(n.ssid||"?")}</td>
+        <td style="font-size:10px;color:var(--dim)">${esc(n.bssid||"?")}</td>
+        <td>${signalBars(n.signal||0)}</td>
+        <td>${secTag(n.security)}</td>
+        <td style="font-size:10px;color:var(--dim)">${(n.scanned_at||"").slice(0,16)}</td>
+      </tr>`).join("") || `<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:16px;">Sin redes aún.</td></tr>`;
+
+    document.getElementById("stat-vulns").textContent = "—";
+  } catch(e) { console.error("[DASH]", e); }
+}
+
+// ════════════════════════════════════════════════════════════
+// [1] SCAN TARGET
+// ════════════════════════════════════════════════════════════
+async function runScan() {
+  const target = document.getElementById("scan-target").value.trim();
+  if (!target) { toast("Ingresa un objetivo", "err"); return; }
+  if (!API)    { toast("Conecta la API primero", "err"); return; }
+
+  const tools = [];
+  if (document.getElementById("t-nmap-svc").checked)  tools.push("nmap_service");
+  if (document.getElementById("t-nmap-vuln").checked) tools.push("nmap_vuln");
+  if (document.getElementById("t-whatweb").checked)   tools.push("whatweb");
+  if (document.getElementById("t-whois").checked)     tools.push("whois");
+  if (document.getElementById("t-dig").checked)       tools.push("dig");
+  if (!tools.length) tools.push("nmap_service");
+
+  setLoading("scan-loader", true);
+  document.getElementById("btn-scan").disabled = true;
+  document.getElementById("scan-results").style.display = "none";
+  document.getElementById("scan-status-msg").textContent = `Analizando ${target}...`;
+
+  try {
+    const d = await apiFetch("/scan", { method:"POST", body: JSON.stringify({ target, tools }) });
+    renderScanResults(d);
+    toast(`Análisis completado — ${d.risk_level}`, d.risk_level === "CRITICAL" ? "err" : "ok");
+  } catch(e) {
+    toast(e.message, "err", 6000);
+  } finally {
+    setLoading("scan-loader", false);
+    document.getElementById("btn-scan").disabled = false;
+  }
+}
+
+// ── MULTI TARGET PARALLEL SCAN ─────────────────────────────
+async function runMultiScan() {
+  const raw = document.getElementById("scan-multi").value.trim();
+  if (!raw) { toast("Ingresa targets en el campo multi-targets", "err"); return; }
+  if (!API) { toast("Conecta la API primero", "err"); return; }
+
+  const targets = raw.split(/\n/).map(t => t.trim()).filter(Boolean);
+  if (targets.length < 2) { toast("Ingresa al menos 2 targets", "err"); return; }
+
+  const tools = [];
+  if (document.getElementById("t-nmap-svc").checked)  tools.push("nmap_service");
+  if (document.getElementById("t-nmap-vuln").checked) tools.push("nmap_vuln");
+  if (document.getElementById("t-whois").checked)     tools.push("whois");
+  if (!tools.length) tools.push("nmap_service");
+
+  const panel    = document.getElementById("multi-scan-panel");
+  const progress = document.getElementById("multi-scan-progress");
+  panel.style.display = "block";
+
+  // Render progress cards
+  progress.innerHTML = targets.map((t, i) => `
+    <div id="mp-${i}" style="margin-bottom:10px;padding:10px 14px;background:#020c18;border:1px solid var(--border);border-radius:4px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="color:var(--textbright);font-size:12px;">${esc(t)}</span>
+        <span id="mp-tag-${i}" class="tag tag-unknown">PENDING</span>
+      </div>
+      <div class="prog-wrap"><div class="prog-fill" id="mp-bar-${i}" style="width:0%;background:var(--dim);"></div></div>
+      <div id="mp-msg-${i}" style="font-size:11px;color:var(--dim);margin-top:4px;">Esperando...</div>
+    </div>`).join("");
+
+  // Launch all in parallel
+  await Promise.allSettled(targets.map(async (target, i) => {
+    const tag = document.getElementById(`mp-tag-${i}`);
+    const bar = document.getElementById(`mp-bar-${i}`);
+    const msg = document.getElementById(`mp-msg-${i}`);
+    tag.textContent = "RUNNING"; tag.className = "tag tag-info";
+    bar.style.width = "30%"; bar.style.background = "var(--accent)";
+    msg.textContent = "Analizando...";
+    try {
+      const d = await apiFetch("/scan", { method:"POST", body: JSON.stringify({ target, tools }) });
+      bar.style.width = "100%";
+      const riskMap = { CRITICAL:"critical", HIGH:"high", MEDIUM:"medium", LOW:"low" };
+      tag.className = `tag tag-${riskMap[(d.risk_level||"").toUpperCase()]||"unknown"}`;
+      tag.textContent = d.risk_level || "DONE";
+      msg.style.color = "var(--accent)";
+      msg.textContent = `SL#${d.sl_no} — ${(d.vulnerabilities||[]).length} vulns`;
+    } catch(e) {
+      bar.style.width = "100%"; bar.style.background = "var(--red)";
+      tag.className = "tag tag-critical"; tag.textContent = "ERROR";
+      msg.style.color = "var(--red)"; msg.textContent = e.message.slice(0,80);
+    }
+  }));
+  toast("Escaneo paralelo completado", "ok");
+}
+
+function renderScanResults(d) {
+  document.getElementById("r-slno").textContent   = d.sl_no;
+  document.getElementById("r-target").textContent = d.target || "?";
+  const riskEl = document.getElementById("r-risk");
+  riskEl.className  = `tag tag-${(d.risk_level||"unknown").toLowerCase()}`;
+  riskEl.textContent = d.risk_level || "?";
+
+  document.getElementById("scan-tab-vulns").innerHTML =
+    (d.vulnerabilities||[]).length
+      ? d.vulnerabilities.map(v => `
+          <div class="vuln-card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+              <div class="vuln-title">${esc(v.vuln_name||"?")}</div>${riskTag(v.severity)}
+            </div>
+            <div class="vuln-meta">Puerto: ${esc(v.port||"?")} | Servicio: ${esc(v.service||"?")}</div>
+            <div class="vuln-desc">${esc(v.description||"")}</div>
+            ${v.fix ? `<div class="vuln-fix">✓ FIX: ${esc(v.fix)}</div>` : ""}
+          </div>`).join("")
+      : "<div style='color:var(--dim);padding:12px;'>No se encontraron vulnerabilidades.</div>";
+
+  document.getElementById("scan-tab-exploits").innerHTML =
+    (d.exploits||[]).length
+      ? d.exploits.map(e => `
+          <div class="vuln-card">
+            <div class="vuln-title">${esc(e.exploit_name||"?")}</div>
+            <div class="vuln-meta">Tool: ${esc(e.tool_used||"?")} | Resultado: ${esc(e.result||"?")}</div>
+            <div class="vuln-desc">Payload: <code>${esc(e.payload||"N/A")}</code></div>
+            ${e.notes ? `<div class="vuln-fix">${esc(e.notes)}</div>` : ""}
+          </div>`).join("")
+      : "<div style='color:var(--dim);padding:12px;'>Sin exploits sugeridos.</div>";
+
+  document.getElementById("scan-tab-analysis").innerHTML =
+    `<div class="output">${esc(d.full_response||"Sin análisis")}</div>`;
+  document.getElementById("scan-tab-raw").innerHTML =
+    `<div class="output">${esc(d.raw_scan_preview||"Sin datos raw")}</div>`;
+
+  document.getElementById("scan-results").style.display = "block";
+  document.getElementById("scan-results").scrollIntoView({ behavior:"smooth" });
+}
+
+// ════════════════════════════════════════════════════════════
+// [2] NETWORK SCAN
+// ════════════════════════════════════════════════════════════
+async function runNetworkScan() {
+  if (!API) { toast("Conecta la API primero", "err"); return; }
+  setLoading("net-loader", true);
+  try {
+    const d = await apiFetch("/network-scan", {
+      method:"POST",
+      body: JSON.stringify({
+        label:  document.getElementById("net-label").value || "wifi_scan",
+        method: document.getElementById("net-method").value,
+      }),
+    });
+    _allNetworks = d.networks || [];
+    document.getElementById("net-count").textContent = d.total_found;
+    document.getElementById("net-results").style.display = "block";
+    renderNetworkCards(_allNetworks);
+    toast(`${d.total_found} redes detectadas`, d.total_found > 0 ? "ok" : "info");
+    loadAllNetworks();
+  } catch(e) {
+    toast(e.message, "err", 5000);
+  } finally {
+    setLoading("net-loader", false);
+  }
+}
+
+function renderNetworkCards(nets) {
+  const container = document.getElementById("net-cards");
+  if (!nets.length) {
+    container.innerHTML = `<div style="color:var(--dim);text-align:center;padding:24px;">
+      ⚠ No se detectaron redes. ¿Está powershell.exe accesible desde WSL2?
+    </div>`;
+    return;
+  }
+  container.innerHTML = nets.map((n, i) => {
+    const sig = parseInt(n.signal) || 0;
+    return `
+      <div class="net-card" id="nc-${i}" onclick="toggleNetCard(${i})">
+        <div class="net-card-head">
+          <div style="flex:1;min-width:0;">
+            <div class="net-ssid">${esc(n.ssid||"<hidden>")}</div>
+            <div class="net-meta">${esc(n.bssid||"N/A")} &nbsp;·&nbsp; CH ${esc(n.channel||"?")} &nbsp;·&nbsp; ${esc(n.radio||"")}</div>
+          </div>
+          ${signalBars(n.signal||"0")}
+          <div style="text-align:right;flex-shrink:0;">
+            ${secTag(n.security)}
+            <div style="font-size:10px;color:var(--dim);margin-top:4px;">click para acciones</div>
+          </div>
+        </div>
+        <div class="net-card-body">
+          <div style="margin-bottom:10px;font-size:11px;color:var(--text);">
+            SSID: <span style="color:var(--textbright)">${esc(n.ssid||"?")}</span> &nbsp;|&nbsp;
+            BSSID: <span style="color:var(--textbright)">${esc(n.bssid||"?")}</span> &nbsp;|&nbsp;
+            Canal: <span style="color:var(--textbright)">${esc(n.channel||"?")}</span> &nbsp;|&nbsp;
+            Seguridad: <span style="color:var(--textbright)">${esc(n.security||"?")}</span>
+          </div>
+          <div class="action-grid">
+            <div class="action-btn" onclick="event.stopPropagation();netAction('info','${esc(n.ssid)}','${esc(n.bssid)}')">
+              <span class="action-icon">🔍</span>INFO DETALLADA
+            </div>
+            <div class="action-btn" onclick="event.stopPropagation();netAction('ping','${esc(n.ssid)}','${esc(n.bssid)}')">
+              <span class="action-icon">📡</span>PING TEST
+            </div>
+            <div class="action-btn" onclick="event.stopPropagation();netAction('traceroute','${esc(n.ssid)}','${esc(n.bssid)}')">
+              <span class="action-icon">🗺</span>TRACEROUTE
+            </div>
+            <div class="action-btn" onclick="event.stopPropagation();netAction('portscan','${esc(n.ssid)}','${esc(n.bssid)}')">
+              <span class="action-icon">⚙</span>PORT SCAN
+            </div>
+            <div class="action-btn danger" onclick="event.stopPropagation();netAction('analyze','${esc(n.ssid)}','${esc(n.bssid)}')">
+              <span class="action-icon">⚡</span>ANÁLISIS IA
+            </div>
+            <div class="action-btn danger" onclick="event.stopPropagation();netAction('deauth','${esc(n.ssid)}','${esc(n.bssid)}')">
+              <span class="action-icon">⚠</span>DEAUTH SIM
+            </div>
+          </div>
+          <div class="terminal" id="nc-term-${i}" style="display:none;margin-top:10px;"></div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function toggleNetCard(i) {
+  const card = document.getElementById(`nc-${i}`);
+  card.classList.toggle("expanded");
+}
+function expandAllNets()   { document.querySelectorAll(".net-card").forEach(c => c.classList.add("expanded")); }
+function collapseAllNets() { document.querySelectorAll(".net-card").forEach(c => c.classList.remove("expanded")); }
+
+function filterNetworks() {
+  const q    = document.getElementById("net-filter").value.toLowerCase();
+  const sort = document.getElementById("net-sort").value;
+  let filtered = _allNetworks.filter(n =>
+    (n.ssid||"").toLowerCase().includes(q) ||
+    (n.bssid||"").toLowerCase().includes(q) ||
+    (n.security||"").toLowerCase().includes(q)
+  );
+  sortAndRender(filtered, sort);
+}
+
+function sortNetworks() {
+  const sort = document.getElementById("net-sort").value;
+  const q    = document.getElementById("net-filter").value.toLowerCase();
+  let filtered = _allNetworks.filter(n =>
+    (n.ssid||"").toLowerCase().includes(q) ||
+    (n.bssid||"").toLowerCase().includes(q)
+  );
+  sortAndRender(filtered, sort);
+}
+
+function sortAndRender(nets, by) {
+  const sorted = [...nets].sort((a, b) => {
+    if (by === "signal")   return (parseInt(b.signal)||0) - (parseInt(a.signal)||0);
+    if (by === "ssid")     return (a.ssid||"").localeCompare(b.ssid||"");
+    if (by === "security") return (a.security||"").localeCompare(b.security||"");
+    if (by === "channel")  return (parseInt(a.channel)||0) - (parseInt(b.channel)||0);
+    return 0;
+  });
+  document.getElementById("net-count").textContent = sorted.length;
+  renderNetworkCards(sorted);
+}
+
+// ── Network Action Handler ─────────────────────────────────
+async function netAction(action, ssid, bssid) {
+  const confirmRequired = ["deauth"];
+  if (confirmRequired.includes(action)) {
+    const ok = confirm(`⚠ ¿Confirmar acción "${action.toUpperCase()}" en ${ssid}?\n\nUsar solo en redes propias o autorizadas.`);
+    if (!ok) return;
+  }
+
+  const actionPanel = document.getElementById("net-action-panel");
+  const actionTitle = document.getElementById("net-action-title");
+  const output      = document.getElementById("net-action-output");
+
+  const labels = {
+    info:       "INFO DETALLADA",
+    ping:       "PING TEST",
+    traceroute: "TRACEROUTE",
+    portscan:   "PORT SCAN",
+    analyze:    "ANÁLISIS IA",
+    deauth:     "DEAUTH SIMULATION",
+  };
+
+  actionPanel.style.display = "block";
+  actionTitle.textContent   = `${labels[action]||action.toUpperCase()} → ${ssid}`;
+  output.innerHTML = `<span class="t-line-info">[ ${new Date().toLocaleTimeString()} ] Iniciando ${labels[action]||action}...</span>\n`;
+  actionPanel.scrollIntoView({ behavior:"smooth" });
+
+  // Log helper
+  const log = (msg, cls = "") => {
+    output.innerHTML += `<span class="${cls}">${esc(msg)}</span>\n`;
+    output.scrollTop = output.scrollHeight;
+  };
+
+  try {
+    if (action === "info") {
+      log(`SSID:     ${ssid}`, "t-line-ok");
+      log(`BSSID:    ${bssid}`, "t-line-ok");
+      log(`Consultando base de datos...`);
+      const nets = await apiFetch("/list-networks").catch(()=>({networks:[]}));
+      const match = (nets.networks||[]).find(n => n.bssid === bssid || n.ssid === ssid);
+      if (match) {
+        log(`Canal:    ${match.channel||"?"}`, "t-line-ok");
+        log(`Señal:    ${match.signal||"?"}`, "t-line-ok");
+        log(`Seg:      ${match.security||"?"}`, "t-line-ok");
+        log(`Visto:    ${(match.scanned_at||"").slice(0,19)}`, "t-line-ok");
+      } else {
+        log(`Red no encontrada en DB. Ejecuta un escaneo primero.`, "t-line-warn");
+      }
+      log(`--- FIN INFO ---`, "t-line-info");
+    }
+
+    else if (action === "ping") {
+      log(`Iniciando ping a gateway (via API)...`);
+      const d = await apiFetch("/scan", {
+        method:"POST",
+        body: JSON.stringify({ target: "8.8.8.8", tools:["nmap_service"] })
+      });
+      log(`Respuesta del gateway recibida (SL#${d.sl_no})`, "t-line-ok");
+      log(d.raw_scan_preview || "(sin datos)", "");
+    }
+
+    else if (action === "traceroute") {
+      log(`tracert/traceroute no disponible como endpoint directo.`, "t-line-warn");
+      log(`Tip: Agrega /traceroute endpoint a tu api.py`, "t-line-info");
+      log(`Ejemplo: _run("tracert 8.8.8.8") en Windows`, "t-line-info");
+    }
+
+    else if (action === "portscan") {
+      log(`Iniciando port scan via /scan...`);
+      const d = await apiFetch("/scan", {
+        method:"POST",
+        body: JSON.stringify({ target: bssid || "192.168.1.1", tools:["nmap_service"] })
+      });
+      log(`SL#${d.sl_no} — Riesgo: ${d.risk_level}`, d.risk_level === "CRITICAL" ? "t-line-err" : "t-line-ok");
+      (d.vulnerabilities||[]).forEach(v => log(`  [${v.severity}] ${v.vuln_name} — Puerto ${v.port}`, "t-line-warn"));
+      if (!d.vulnerabilities?.length) log("  Sin puertos vulnerables detectados.", "t-line-ok");
+    }
+
+    else if (action === "analyze") {
+      log(`Enviando a análisis IA profundo...`);
+      const d = await apiFetch("/scan", {
+        method:"POST",
+        body: JSON.stringify({ target: ssid, tools:["nmap_service","whois"] })
+      });
+      log(`SL#${d.sl_no} — Riesgo: ${d.risk_level}`, "t-line-ok");
+      log(d.full_response || "(sin análisis)", "");
+    }
+
+    else if (action === "deauth") {
+      log(`[SIM] Deauth simulation para BSSID: ${bssid}`, "t-line-warn");
+      log(`[SIM] En un entorno real se usaría: aireplay-ng --deauth 10 -a ${bssid} wlan0mon`, "t-line-warn");
+      log(`[SIM] Esta acción está SIMULADA y no afecta la red real.`, "t-line-err");
+      log(`[SIM] METATRON v2.1 — solo autorización propia.`, "t-line-info");
+    }
+
+  } catch(e) {
+    log(`ERROR: ${e.message}`, "t-line-err");
+  }
+}
+
+async function loadAllNetworks() {
+  if (!API) return;
+  try {
+    const d = await apiFetch("/list-networks");
+    const nets = d.networks || [];
+    document.getElementById("db-net-count").textContent = `(${nets.length})`;
+    document.getElementById("net-db-table").innerHTML = nets.map(n => `
+      <tr>
+        <td style="color:var(--dim)">${n.sl_no||"?"}</td>
+        <td style="color:var(--accent)">${esc(n.ssid||"?")}</td>
+        <td style="font-size:11px;color:var(--dim)">${esc(n.bssid||"?")}</td>
+        <td>${esc(n.channel||"?")}</td>
+        <td>${signalBars(n.signal||0)}</td>
+        <td>${secTag(n.security)}</td>
+        <td style="font-size:10px;color:var(--dim)">${(n.scanned_at||"").slice(0,16)}</td>
+      </tr>`).join("") || `<tr><td colspan="7" style="color:var(--dim);text-align:center;padding:14px;">Sin redes en DB.</td></tr>`;
+  } catch(e) { console.error(e); }
+}
+
+// ════════════════════════════════════════════════════════════
+// [3] SKILL WORKSHOP
+// ════════════════════════════════════════════════════════════
+async function createSkill() {
+  if (!API) { toast("Conecta la API primero", "err"); return; }
+  setLoading("skill-loader", true);
+  try {
+    const d = await apiFetch("/create-skill", {
+      method:"POST",
+      body: JSON.stringify({
+        service:   document.getElementById("sk-service").value,
+        port:      document.getElementById("sk-port").value,
+        context:   document.getElementById("sk-context").value,
+        language:  document.getElementById("sk-lang").value,
+        auto_save: true,
+      }),
+    });
+    currentSkillFilename = d.skill_name + (d.language === "python" ? ".py" : ".sh");
+    document.getElementById("sp-name").textContent = d.skill_name;
+    document.getElementById("sp-desc").textContent = d.description;
+    document.getElementById("sp-code").textContent = d.code;
+    document.getElementById("skill-preview").style.display = "block";
+    document.getElementById("skill-output").style.display  = "none";
+    toast("Skill generado ✓", "ok");
+    loadSkills();
+  } catch(e) {
+    toast(e.message, "err");
+  } finally {
+    setLoading("skill-loader", false);
+  }
+}
+
+async function loadSkills() {
+  if (!API) return;
+  try {
+    const d  = await apiFetch("/skills");
+    const el = document.getElementById("skills-list");
+    if (!d.skills || !d.skills.length) {
+      el.innerHTML = "<div style='color:var(--dim);font-size:12px;text-align:center;padding:20px;'>Sin skills generados aún.</div>";
+      document.getElementById("stat-skills").textContent = "0";
+      return;
+    }
+    document.getElementById("stat-skills").textContent = d.skills.length;
+    el.innerHTML = d.skills.map(s => `
+      <div class="skill-card">
+        <div>
+          <div class="skill-name">${esc(s.name)}</div>
+          <div class="skill-type">${esc(s.type)} · ${s.size} bytes</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="runSkillByName('${esc(s.name)}')">▶ RUN</button>
+      </div>`).join("");
+  } catch(e) { console.error(e); }
+}
+
+async function runGeneratedSkill() {
+  const target = document.getElementById("sp-target").value || "127.0.0.1";
+  if (!currentSkillFilename) return;
+  const out = document.getElementById("skill-output");
+  out.style.display = "block"; out.textContent = "Ejecutando...";
+  try {
+    const d = await apiFetch("/run-skill", { method:"POST", body: JSON.stringify({ filename: currentSkillFilename, target }) });
+    out.textContent = d.output || "(sin output)";
+    toast("Skill ejecutado ✓", "ok");
+  } catch(e) {
+    out.textContent = `Error: ${e.message}`;
+    toast("Error ejecutando skill", "err");
+  }
+}
+
+async function runSkillByName(name) {
+  const target = prompt("Target IP:", "127.0.0.1");
+  if (!target) return;
+  try {
+    const d = await apiFetch("/run-skill", { method:"POST", body: JSON.stringify({ filename: name, target }) });
+    toast("Skill ejecutado ✓", "ok");
+    alert(d.output || "(sin output)");
+  } catch(e) { toast(e.message, "err"); }
+}
+
+// ════════════════════════════════════════════════════════════
+// [4] HISTORY
+// ════════════════════════════════════════════════════════════
+async function loadHistory() {
+  if (!API) { toast("Conecta la API primero", "err"); return; }
+  try {
+    const d = await apiFetch("/history");
+    _allHistory = d.sessions || [];
+    renderHistory(_allHistory);
+  } catch(e) { toast(e.message, "err"); }
+}
+
+function filterHistory() {
+  const q    = document.getElementById("hist-filter").value.toLowerCase();
+  const risk = document.getElementById("hist-risk-filter").value.toUpperCase();
+  let list   = _allHistory.filter(s => {
+    const matchQ    = !q    || (s.target||"").toLowerCase().includes(q);
+    const matchRisk = !risk || (_historyRisk[s.sl_no]||"").toUpperCase() === risk;
+    return matchQ && matchRisk;
+  });
+  renderHistory(list);
+}
+
+function renderHistory(sessions) {
+  document.getElementById("history-table").innerHTML =
+    sessions.map(s => `
+      <tr class="clickable" onclick="loadSession(${s.sl_no})">
+        <td style="color:var(--accent)">#${s.sl_no}</td>
+        <td style="color:var(--textbright)">${esc(s.target||"?")}</td>
+        <td style="font-size:10px;color:var(--dim)">${(s.scan_date||"").slice(0,16)}</td>
+        <td><span class="tag tag-info">${esc(s.status||"?")}</span></td>
+        <td>
+          <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteSession(${s.sl_no})">✕ DEL</button>
+        </td>
+      </tr>`).join("") ||
+    `<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:16px;">Sin sesiones.</td></tr>`;
+}
+
+async function loadSession(sl_no) {
+  try {
+    const d = await apiFetch(`/session/${sl_no}`);
+    if (d.summary) _historyRisk[sl_no] = d.summary.risk_level;
+    renderSessionDetail(sl_no, d);
+    document.getElementById("session-detail").style.display = "block";
+    document.getElementById("session-detail").scrollIntoView({ behavior:"smooth" });
+  } catch(e) { toast(e.message, "err"); }
+}
+
+function renderSessionDetail(sl_no, d) {
+  const h = d.history || {};
+  document.getElementById("d-slno").textContent   = sl_no;
+  document.getElementById("d-target").textContent = h.target || "?";
+  const risk   = d.summary ? d.summary.risk_level : "UNKNOWN";
+  const riskEl = document.getElementById("d-risk");
+  riskEl.className  = `tag tag-${(risk||"unknown").toLowerCase()}`;
+  riskEl.textContent = risk || "?";
+
+  document.getElementById("detail-tab-vulns").innerHTML =
+    (d.vulns||[]).length ? d.vulns.map(v => `
+      <div class="vuln-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div class="vuln-title">${esc(v.vuln_name||"?")}</div>${riskTag(v.severity)}
+        </div>
+        <div class="vuln-meta">Puerto: ${esc(v.port||"?")} | Servicio: ${esc(v.service||"?")}</div>
+        <div class="vuln-desc">${esc(v.description||"")}</div>
+      </div>`).join("") :
+    "<div style='color:var(--dim);padding:12px;'>Sin vulnerabilidades.</div>";
+
+  document.getElementById("detail-tab-exploits").innerHTML =
+    (d.exploits||[]).length ? d.exploits.map(e => `
+      <div class="vuln-card">
+        <div class="vuln-title">${esc(e.exploit_name||"?")}</div>
+        <div class="vuln-meta">Tool: ${esc(e.tool_used||"?")}</div>
+        <div class="vuln-desc">${esc(e.payload||"")}</div>
+      </div>`).join("") :
+    "<div style='color:var(--dim);padding:12px;'>Sin exploits.</div>";
+
+  document.getElementById("detail-tab-analysis").innerHTML =
+    d.summary ? `<div class="output">${esc(d.summary.ai_analysis||"Sin análisis")}</div>`
+              : "<div style='color:var(--dim);padding:12px;'>Sin análisis.</div>";
+
+  document.getElementById("detail-tab-wifi").innerHTML =
+    (d.wifi||[]).length
+      ? `<table><thead><tr><th>SSID</th><th>BSSID</th><th>CH</th><th>SEÑAL</th><th>SEGURIDAD</th></tr></thead><tbody>
+          ${d.wifi.map(w=>`<tr>
+            <td style="color:var(--accent)">${esc(w.ssid||"?")}</td>
+            <td style="font-size:10px;color:var(--dim)">${esc(w.bssid||"?")}</td>
+            <td>${esc(w.channel||"?")}</td>
+            <td>${signalBars(w.signal||0)}</td>
+            <td>${secTag(w.security)}</td>
+          </tr>`).join("")}
+        </tbody></table>`
+      : "<div style='color:var(--dim);padding:12px;'>Sin datos Wi-Fi.</div>";
+}
+
+async function deleteSession(sl_no) {
+  if (!confirm(`¿Borrar sesión SL# ${sl_no}? Esta acción es irreversible.`)) return;
+  try {
+    await apiFetch(`/session/${sl_no}`, { method:"DELETE" });
+    toast(`Sesión SL#${sl_no} eliminada`, "ok");
+    loadHistory();
+    document.getElementById("session-detail").style.display = "none";
+  } catch(e) { toast(e.message, "err"); }
+}
+
+// ════════════════════════════════════════════════════════════
+// [5] KNOWLEDGE BASE
+// ════════════════════════════════════════════════════════════
+async function loadKnowledge() {
+  if (!API) return;
+  const cat = document.getElementById("kb-cat").value;
+  const qs  = cat ? `?limit=50&category=${encodeURIComponent(cat)}` : "?limit=50";
+  try {
+    const d  = await apiFetch(`/knowledge${qs}`);
+    const el = document.getElementById("knowledge-list");
+    if (!d.knowledge || !d.knowledge.length) {
+      el.innerHTML = "<div style='color:var(--dim);padding:16px;font-size:12px;'>Base de conocimiento vacía.</div>";
+      return;
+    }
+    el.innerHTML =
+      `<div class="know-entry" style="border-bottom:1px solid var(--border);">
+        <span style="color:var(--dim);font-size:9px;letter-spacing:2px;">CATEGORÍA</span>
+        <span style="color:var(--dim);font-size:9px;letter-spacing:2px;">SUJETO</span>
+        <span style="color:var(--dim);font-size:9px;letter-spacing:2px;text-align:center;">RESULTADO</span>
+        <span style="color:var(--dim);font-size:9px;letter-spacing:2px;">CONF</span>
+      </div>` +
+      d.knowledge.map(k => `
+        <div class="know-entry" title="${esc(k.details||"")}">
+          <span class="know-cat">${esc((k.category||"").toUpperCase())}</span>
+          <span class="know-subj">${esc(k.subject||"")}</span>
+          <span class="know-out out-${k.outcome||"partial"}">${esc(k.outcome||"?")}</span>
+          <span class="know-conf">${parseFloat(k.confidence||0).toFixed(2)}</span>
+        </div>`).join("");
+  } catch(e) { console.error(e); }
+}
+
+async function addKnowledge() {
+  if (!API) { toast("Conecta la API primero", "err"); return; }
+  try {
+    await apiFetch("/knowledge", {
+      method:"POST",
+      body: JSON.stringify({
+        category:   document.getElementById("kb-add-cat").value,
+        subject:    document.getElementById("kb-add-subj").value,
+        outcome:    document.getElementById("kb-add-out").value,
+        confidence: parseFloat(document.getElementById("kb-add-conf").value),
+        details:    document.getElementById("kb-add-details").value,
+      }),
+    });
+    toast("Conocimiento guardado ✓", "ok");
+    loadKnowledge();
+  } catch(e) { toast(e.message, "err"); }
+}
+
+// ════════════════════════════════════════════════════════════
+// AUTO-REFRESH
+// ════════════════════════════════════════════════════════════
+setInterval(() => { if (API) testConnection(); }, 30000);
+</script>
+</body>
+</html>
